@@ -33,9 +33,16 @@ def test_weather_fetch_decision() -> None:
     assert should_fetch_weather("厄尔尼诺是什么？") is False
     assert should_fetch_weather("副热带高压为什么会影响高温？") is False
     assert should_fetch_weather("广州明天适合骑车吗？") is True
+    assert should_fetch_weather("广州明天适合吃猪脚饭吗？") is False
+    assert should_fetch_weather("广州明天出门吃饭要带伞吗？") is True
 
 
 def test_domain_guard() -> None:
     assert is_weather_domain_question("广州明天适合骑车吗？") is True
     assert is_weather_domain_question("厄尔尼诺是什么？") is True
+    assert is_weather_domain_question("广州明天出门吃饭要带伞吗？") is True
+    assert is_weather_domain_question("广州明天适合野餐吗？") is True
     assert is_weather_domain_question("怎么做红烧肉？") is False
+    assert is_weather_domain_question("广州明天适合吃猪脚饭吗？") is False
+    assert is_weather_domain_question("北京明天适合看电影吗？") is False
+    assert is_weather_domain_question("上海明天推荐买什么股票？") is False

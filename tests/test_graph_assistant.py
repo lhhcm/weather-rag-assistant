@@ -46,3 +46,24 @@ def test_out_of_scope_question_is_blocked_before_retrieval() -> None:
     assert response["sources"] == []
     assert "retrieve_knowledge" not in response["graph"]["trace"]
     assert "fetch_weather" not in response["graph"]["trace"]
+
+
+def test_food_suitability_question_is_not_weather_decision() -> None:
+    store = LocalVectorStore.from_directory(ROOT / "data" / "weather_docs")
+    assistant = GraphWeatherRagAssistant(store)
+    response = assistant.ask("广州明天适合吃猪脚饭吗？")
+
+    assert response["out_of_scope"] is True
+    assert response["answer_backend"] == "domain-guard"
+    assert response["sources"] == []
+    assert "fetch_weather" not in response["graph"]["trace"]
+
+
+def test_weather_related_meal_trip_still_fetches_weather() -> None:
+    store = LocalVectorStore.from_directory(ROOT / "data" / "weather_docs")
+    assistant = GraphWeatherRagAssistant(store)
+    response = assistant.ask("广州明天出门吃饭要带伞吗？")
+
+    assert response["out_of_scope"] is False
+    assert response["location"] == "广州"
+    assert "fetch_weather" in response["graph"]["trace"]

@@ -62,6 +62,7 @@ METEOROLOGY_TERMS = [
 WEATHER_DECISION_TERMS = [
     "天气",
     "下雨",
+    "雨",
     "降雨",
     "降水",
     "温度",
@@ -70,11 +71,17 @@ WEATHER_DECISION_TERMS = [
     "风",
     "紫外线",
     "湿度",
-    "适合",
-    "能不能",
-    "可以",
     "要带伞",
     "带伞",
+    "雨伞",
+    "淋雨",
+    "积水",
+    "晒",
+    "防晒",
+    "热不热",
+    "冷不冷",
+    "闷热",
+    "潮湿",
     "穿什么",
 ]
 
@@ -90,9 +97,19 @@ OUTDOOR_WEATHER_TERMS = [
     "野餐",
     "户外",
     "出行",
+    "出门",
     "通勤",
+    "上班",
+    "上学",
     "活动",
     "比赛",
+    "训练",
+    "遛娃",
+    "遛狗",
+    "散步",
+    "拍照",
+    "郊游",
+    "爬山",
     "路线",
     "安全",
     "风险",
@@ -100,9 +117,35 @@ OUTDOOR_WEATHER_TERMS = [
     "改期",
 ]
 
+GENERIC_DECISION_TERMS = ["适合", "能不能", "可以", "要不要", "建议", "推荐"]
+
+OUT_OF_SCOPE_TOPIC_TERMS = [
+    "吃",
+    "饭",
+    "菜",
+    "猪脚饭",
+    "火锅",
+    "奶茶",
+    "咖啡",
+    "做饭",
+    "红烧肉",
+    "电影",
+    "游戏",
+    "股票",
+    "基金",
+    "代码",
+    "编程",
+    "数学题",
+    "历史",
+    "旅游攻略",
+    "酒店",
+    "买房",
+    "装修",
+]
+
 OUT_OF_SCOPE_ANSWER = (
     "我主要回答户外活动天气风险、国内地点天气决策和气象专业术语问题。"
-    "你可以这样问：广州明天适合骑行吗？雷暴天气为什么不适合露营？厄尔尼诺是什么？"
+    "你可以这样问：广州明天适合骑行吗？广州明天出门吃饭要带伞吗？雷暴天气为什么不适合露营？厄尔尼诺是什么？"
 )
 
 
@@ -191,6 +234,8 @@ def is_weather_domain_question(question: str) -> bool:
     explicit_location = find_explicit_location(question)
     has_weather_term = any(term in question for term in WEATHER_DECISION_TERMS)
     has_outdoor_term = any(term in question for term in OUTDOOR_WEATHER_TERMS)
+    has_generic_decision = any(term in question for term in GENERIC_DECISION_TERMS)
+    has_out_of_scope_topic = any(term in question for term in OUT_OF_SCOPE_TOPIC_TERMS)
     has_time_term = any(term in question for term in TIME_TERMS)
     asks_definition = any(term in question for term in ["是什么", "为什么", "解释", "原理", "区别", "概念", "术语"])
     concept_question = is_meteorology_concept_question(question)
@@ -199,10 +244,12 @@ def is_weather_domain_question(question: str) -> bool:
         return True
     if has_weather_term:
         return True
+    if has_out_of_scope_topic and has_generic_decision and not has_outdoor_term:
+        return False
     if has_outdoor_term and (has_time_term or explicit_location or asks_definition):
         return True
-    if explicit_location and has_time_term:
-        return True
+    if explicit_location and has_time_term and has_generic_decision:
+        return False
     if "weather" in lower:
         return True
     return False
@@ -213,6 +260,7 @@ def should_fetch_weather(question: str) -> bool:
     lower = question.lower()
     explicit_location = find_explicit_location(question)
     has_decision_term = any(term in question for term in WEATHER_DECISION_TERMS)
+    has_outdoor_term = any(term in question for term in OUTDOOR_WEATHER_TERMS)
     has_time_term = any(term in question for term in TIME_TERMS)
     asks_definition = any(term in question for term in ["是什么", "为什么", "解释", "原理", "区别", "概念", "术语"])
     concept_question = is_meteorology_concept_question(question)
@@ -221,7 +269,7 @@ def should_fetch_weather(question: str) -> bool:
         return False
     if concept_question and not explicit_location and not has_time_term:
         return False
-    if explicit_location and (has_decision_term or has_time_term):
+    if explicit_location and (has_decision_term or (has_outdoor_term and has_time_term)):
         return True
     if "weather" in lower and explicit_location:
         return True
