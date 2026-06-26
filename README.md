@@ -5,7 +5,8 @@
 ## 亮点
 
 - 天气 API 编排：自动识别国内城市，调用 Open-Meteo 地理编码与天气预报接口，并使用 `countryCode=CN` 约束查询范围。
-- LangGraph 状态图：将问题校验、意图识别、天气查询、RAG 检索、答案生成拆成可观测节点。
+- LangGraph 状态图：将问题校验、意图识别、天气查询、RAG 检索、LangChain 答案生成拆成可观测节点。
+- LangChain 问答链：将天气数据、风险标签和 RAG 来源组装为提示词；配置 LLM Key 后可调用 OpenAI 兼容大模型，否则使用本地 RAG 兜底。
 - RAG 知识库：内置气象文档，返回带来源的回答。
 - 向量检索：默认使用本地 Hash Embedding + 余弦相似度，零依赖可跑；可扩展到 LangChain + Chroma。
 - 可解释输出：答案拆分为结论、天气依据、知识依据、行动建议和引用来源。
@@ -36,7 +37,27 @@ python -m src.weather_rag.server
 http://127.0.0.1:8765
 ```
 
-页面左上方状态会显示 `langgraph · 6 片段`，说明当前已经启用 LangGraph 状态图。如果没有安装 LangGraph，项目会显示 `linear-fallback`，仍可演示基础问答，但简历版建议安装 LangGraph。
+页面状态接口会返回 `orchestrator=langgraph` 和 `answer_backend`。如果配置了大模型 API Key，`answer_backend=langchain-llm`；如果没有 Key，则为 `langchain-local-rag`，表示使用 LangChain 组织上下文，但答案由本地 RAG 兜底生成。
+
+## 可选：接入大模型 API
+
+默认项目不内置任何 API Key，也不会偷偷调用外部大模型。要让“问天气AI”真正调用大模型，需要配置 OpenAI 兼容接口：
+
+```powershell
+$env:WEATHER_LLM_API_KEY="你的 API Key"
+$env:WEATHER_LLM_MODEL="gpt-4o-mini"
+# 如使用第三方 OpenAI 兼容服务，再配置：
+$env:WEATHER_LLM_BASE_URL="https://你的服务地址/v1"
+python -m src.weather_rag.server
+```
+
+配置后可访问健康检查确认：
+
+```text
+http://127.0.0.1:8765/api/health
+```
+
+其中 `llm.connected=true` 表示问答已经接入大模型；`false` 表示当前仍是本地 RAG 兜底。
 
 测试接口：
 
@@ -106,15 +127,15 @@ flowchart LR
 - `retrieve_knowledge`：组合问题、天气摘要和风险标签，检索气象知识库。
 - `generate_answer`：生成带天气依据、知识依据和行动建议的回答。
 
-## 可选：LangChain / Chroma 方案
+## 可选：Chroma 向量库方案
 
-当前默认检索使用本地 Hash Embedding，确保没有 LLM Key 也能演示。如果要升级成更标准的 LangChain + Chroma 向量库实现，可安装：
+当前默认检索使用本地 Hash Embedding，确保没有 LLM Key 也能演示。如果要升级成更标准的 Chroma 向量库实现，可安装：
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-然后在 `src/weather_rag/langchain_pipeline.py` 中接入 Chroma 持久化索引和 LLM。当前项目已经保留了适配层与迁移说明，面试时可以说明“本地检索为演示兜底，生产方案替换为 LangChain + Chroma + LLM”。
+然后在 `src/weather_rag/langchain_pipeline.py` 中接入 Chroma 持久化索引。当前项目已经使用 LangChain 组织答案生成链路，并保留 Chroma 检索器适配层。
 
 ## 项目结构
 
@@ -167,12 +188,13 @@ weather-rag-assistant/
 
 技术栈：
 
-> Python、LangGraph、LangChain 思路、Chroma 可扩展向量库、RAG、Open-Meteo API、HTML/CSS/JavaScript
+> Python、LangGraph、LangChain、RAG、本地向量检索、OpenAI 兼容 LLM API、Open-Meteo API、HTML/CSS/JavaScript
 
 简历要点：
 
-- 基于 LangGraph 设计天气问答状态图，将问题理解、天气 API、风险评估、RAG 检索和答案生成拆分为可观测节点。
+- 基于 LangGraph 设计天气问答状态图，将问题理解、天气 API、风险评估、RAG 检索和 LangChain 答案生成拆分为可观测节点。
 - 搭建 RAG 问答链路，将气象知识文档切块、向量化并按 Top-K 相似度召回，为天气建议提供可追溯来源。
+- 使用 LangChain 将天气数据、风险标签和检索来源组装为问答链，支持配置 OpenAI 兼容 API 后调用真实大模型生成回答。
 - 封装 Open-Meteo 地理编码与天气预报接口，使用中国城市范围过滤，实现国内城市识别、实时天气摘要和降水/强风/高温/紫外线风险标签。
 - 设计无 Key 可演示的降级方案，使用本地 Hash Embedding 与模板生成保证项目在面试环境稳定运行。
 - 实现前后端一体化 Web Demo，展示问答、天气指标、引用来源和系统状态，提升作品集可展示性。

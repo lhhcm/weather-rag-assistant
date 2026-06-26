@@ -19,6 +19,8 @@ def test_graph_fallback_or_langgraph_response_shape() -> None:
         "retrieve_knowledge",
         "generate_answer",
     ]
+    assert response["answer_backend"] in {"langchain-local-rag", "langchain-llm"}
+    assert "connected" in response["llm"]
     assert response["sources"]
 
 

@@ -618,7 +618,8 @@ async function runCalendar() {
 }
 
 async function askKnowledge() {
-  $("#qa-answer").textContent = "正在检索气象知识库...";
+  $("#qa-answer").textContent = "正在通过 LangChain 组织天气数据与知识库上下文...";
+  $("#qa-backend").textContent = "生成中";
   try {
     const response = await fetch("/api/ask", {
       method: "POST",
@@ -628,8 +629,12 @@ async function askKnowledge() {
     const data = await response.json();
     if (!response.ok || data.error) throw new Error(data.error || "请求失败");
     $("#qa-answer").textContent = data.answer;
+    $("#qa-backend").textContent = data.llm?.connected
+      ? `已接入大模型：${data.answer_backend} · ${data.llm.model}`
+      : `未接入外部大模型：${data.answer_backend || "langchain-local-rag"} · 本地 RAG 兜底`;
   } catch (error) {
     $("#qa-answer").textContent = `请求失败：${error.message}`;
+    $("#qa-backend").textContent = "请求失败";
   }
 }
 

@@ -2,14 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
-from .assistant import (
-    build_retrieval_query,
-    classify_intent,
-    compose_answer,
-    detect_period,
-    should_fetch_weather,
-    trim_text,
-)
+from .assistant import build_retrieval_query, classify_intent, detect_period, should_fetch_weather, trim_text
+from .langchain_pipeline import LangChainAnswerGenerator
 from .rag import LocalVectorStore, SearchResult
 from .weather_api import WeatherApiError, assess_risks, detect_location, fetch_weather
 
@@ -28,6 +22,9 @@ class WeatherRagState(TypedDict, total=False):
     retrieval_query: str
     results: list[SearchResult]
     answer: str
+    answer_backend: str
+    llm_connected: bool
+    llm_model: str
     graph_trace: list[str]
 
 
@@ -55,6 +52,7 @@ class GraphWeatherRagAssistant:
 
     def __init__(self, vector_store: LocalVectorStore | None = None) -> None:
         self.vector_store = vector_store or LocalVectorStore.from_directory()
+        self.answer_generator = LangChainAnswerGenerator()
         self.graph_app = self._build_langgraph_app()
 
     @property
@@ -116,7 +114,7 @@ class GraphWeatherRagAssistant:
         if state.get("error"):
             return {**state, "answer": state["error"], "graph_trace": trace}
 
-        answer = compose_answer(
+        answer = self.answer_generator.generate(
             state.get("cleaned_question", ""),
             state.get("location", ""),
             state.get("intent", "综合"),
@@ -126,7 +124,14 @@ class GraphWeatherRagAssistant:
             state.get("risks", []),
             state.get("results", []),
         )
-        return {**state, "answer": answer, "graph_trace": trace}
+        return {
+            **state,
+            "answer": answer.text,
+            "answer_backend": answer.backend,
+            "llm_connected": answer.llm_connected,
+            "llm_model": answer.model,
+            "graph_trace": trace,
+        }
 
     def route_after_understanding(self, state: WeatherRagState) -> Literal["fetch_weather", "retrieve_knowledge"]:
         return "fetch_weather" if state.get("fetch_required") else "retrieve_knowledge"
@@ -188,6 +193,11 @@ class GraphWeatherRagAssistant:
                 "trace": state.get("graph_trace", []),
                 "nodes": self.graph_nodes,
                 "edges": self.graph_edges,
+            },
+            "answer_backend": state.get("answer_backend", "langchain-local-rag"),
+            "llm": {
+                "connected": bool(state.get("llm_connected", False)),
+                "model": state.get("llm_model", "local-template"),
             },
             "sources": [
                 {

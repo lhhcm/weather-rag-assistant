@@ -281,11 +281,19 @@ def trim_text(text: str, max_length: int) -> str:
 
 
 def health_payload(assistant: WeatherRagAssistant) -> dict[str, Any]:
+    answer_generator = getattr(assistant, "answer_generator", None)
+    llm_connected = bool(getattr(answer_generator, "llm_connected", False))
+    llm_model = getattr(answer_generator, "model_name", "local-template") if llm_connected else "local-template"
     return {
         "status": "ok",
         "documents": len(assistant.vector_store.chunks),
         "vector_backend": "local-hash",
         "orchestrator": "langgraph" if getattr(assistant, "graph_enabled", False) else "linear-fallback",
+        "answer_backend": "langchain-llm" if llm_connected else "langchain-local-rag",
+        "llm": {
+            "connected": llm_connected,
+            "model": llm_model,
+        },
         "graph_nodes": getattr(assistant, "graph_nodes", []),
         "sample_questions": [
             "广州明天适合骑车吗？",
