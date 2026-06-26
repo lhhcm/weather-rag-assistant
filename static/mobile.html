@@ -51,6 +51,12 @@
       .risk-medium { border-left: 4px solid #eab308; }
       .risk-low { border-left: 4px solid #22c55e; }
       .weather-photo { background-size: cover; background-position: center; }
+      #insight-title { font-size: clamp(22px, 5.6vw, 28px); line-height: 1.18; font-weight: 800; }
+      #insight-body { font-size: clamp(16px, 4.2vw, 18px); line-height: 1.62; font-weight: 650; color: rgba(255,255,255,.94); }
+      #insight-kicker { font-size: 12px; letter-spacing: .02em; }
+      #insight-source { font-size: 12px; line-height: 1.45; font-weight: 800; }
+      #insight-list { font-size: clamp(16px, 4.2vw, 18px); line-height: 1.75; font-weight: 650; color: #374151; }
+      #insight-list li { margin-bottom: 6px; }
       .shine { position: relative; overflow: hidden; }
       .shine::after { content: ""; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation: shine 4.8s ease-in-out infinite; pointer-events: none; }
       @keyframes shine { 0%, 55% { transform: translateX(-120%); } 78%, 100% { transform: translateX(120%); } }
@@ -146,15 +152,15 @@
       <section class="grid grid-cols-2 gap-2" id="metrics"></section>
 
       <section id="insight-card" class="glass-card overflow-hidden rounded-xl">
-        <div id="insight-image" class="weather-photo relative h-52 w-full bg-carbon">
+        <div id="insight-image" class="weather-photo relative h-60 w-full bg-carbon">
           <span class="absolute right-3 top-3 z-10 rounded bg-black/55 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white/90 backdrop-blur">AI生成示意图</span>
           <div class="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/95 via-black/55 to-black/5 p-4">
             <div class="mb-2 flex items-center gap-2">
               <span id="insight-dot" class="h-2 w-2 rounded-full bg-cyan"></span>
               <p id="insight-kicker" class="text-[11px] font-bold text-white">天气洞察</p>
             </div>
-            <p id="insight-title" class="text-xl font-bold text-white">等待天气评估</p>
-            <p id="insight-body" class="mt-1 text-sm leading-relaxed text-white/86">评估后会根据好天气或风险天气，展示诗句、鼓励语或防灾减灾措施。</p>
+            <p id="insight-title" class="text-white">等待天气评估</p>
+            <p id="insight-body" class="mt-2">评估后会根据好天气或风险天气，展示诗句、鼓励语或防灾减灾措施。</p>
           </div>
         </div>
         <div class="flex items-center justify-between bg-white p-4">
@@ -164,7 +170,7 @@
           </button>
         </div>
         <div id="insight-details" class="hidden border-t border-line bg-white px-4 pb-4">
-          <ul id="insight-list" class="list-inside list-disc space-y-1 text-sm text-muted"></ul>
+          <ul id="insight-list" class="list-inside list-disc space-y-1"></ul>
         </div>
       </section>
 
