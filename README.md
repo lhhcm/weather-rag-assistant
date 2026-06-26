@@ -38,6 +38,21 @@ python -m src.weather_rag.server
 http://127.0.0.1:8765
 ```
 
+## 本地 EXE 桌面启动
+
+可以打包成一个本地 exe：双击后自动启动本地服务并打开浏览器页面；关闭页面后，网页心跳停止，服务会在十几秒内自动退出。
+
+```powershell
+python -m pip install pyinstaller
+pyinstaller --onefile --windowed --name "户外活动天气风险决策助手" --add-data "static;static" --add-data "data;data" desktop_launcher.py
+```
+
+生成文件在：
+
+```text
+dist/户外活动天气风险决策助手.exe
+```
+
 页面状态接口会返回 `orchestrator=langgraph` 和 `answer_backend`。如果配置了大模型 API Key，`answer_backend=langchain-llm`；如果没有 Key，则为 `langchain-local-rag`，表示使用 LangChain 组织上下文，但答案由本地 RAG 兜底生成。
 
 ## 可选：接入大模型 API

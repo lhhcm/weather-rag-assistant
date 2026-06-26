@@ -35,6 +35,14 @@ function setStatus(text) {
   $("#api-status").textContent = text;
 }
 
+function startDesktopHeartbeat() {
+  const ping = () => {
+    fetch("/api/desktop-heartbeat", { method: "POST", keepalive: true }).catch(() => {});
+  };
+  ping();
+  setInterval(ping, 3000);
+}
+
 function activityLabel(value) {
   return {
     cycling: "骑行",
@@ -923,6 +931,7 @@ function init() {
     localStorage.setItem("meteorisk_subscriptions", JSON.stringify(state.subscriptions));
     renderSubscriptions();
   });
+  startDesktopHeartbeat();
 }
 
 init();

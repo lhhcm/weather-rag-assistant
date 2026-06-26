@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import sys
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -16,6 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STATIC_DIR = PROJECT_ROOT / "static"
 HOST = "127.0.0.1"
 PORT = 8765
+DESKTOP_HEARTBEAT_TIMEOUT = 12
 
 assistant = GraphWeatherRagAssistant()
 
@@ -36,6 +40,11 @@ class WeatherRagHandler(BaseHTTPRequestHandler):
         self.write_json({"error": "Not found"}, status=404)
 
     def do_POST(self) -> None:
+        if self.path == "/api/desktop-heartbeat":
+            self.server.last_desktop_heartbeat = time.monotonic()  # type: ignore[attr-defined]
+            self.write_json({"ok": True})
+            return
+
         if self.path not in {"/api/ask", "/api/activity-risk"}:
             self.write_json({"error": "Not found"}, status=404)
             return
@@ -81,13 +90,31 @@ class WeatherRagHandler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def log_message(self, format: str, *args: Any) -> None:
-        sys.stderr.write("[%s] %s\n" % (self.log_date_time_string(), format % args))
+        if sys.stderr:
+            sys.stderr.write("[%s] %s\n" % (self.log_date_time_string(), format % args))
 
 
 def run(host: str = HOST, port: int = PORT) -> None:
     httpd = ThreadingHTTPServer((host, port), WeatherRagHandler)
-    print(f"Outdoor Activity Weather Risk Decision Assistant running at http://{host}:{port}")
+    httpd.last_desktop_heartbeat = time.monotonic()
+    httpd.desktop_shutdown = os.getenv("WEATHER_DESKTOP_SHUTDOWN_ON_IDLE") == "1"
+    if httpd.desktop_shutdown:
+        start_desktop_shutdown_monitor(httpd)
+    if sys.stdout:
+        print(f"Outdoor Activity Weather Risk Decision Assistant running at http://{host}:{port}")
     httpd.serve_forever()
+
+
+def start_desktop_shutdown_monitor(httpd: ThreadingHTTPServer) -> None:
+    def monitor() -> None:
+        while True:
+            time.sleep(2)
+            last_heartbeat = getattr(httpd, "last_desktop_heartbeat", time.monotonic())
+            if time.monotonic() - last_heartbeat > DESKTOP_HEARTBEAT_TIMEOUT:
+                httpd.shutdown()
+                return
+
+    threading.Thread(target=monitor, daemon=True).start()
 
 
 if __name__ == "__main__":
