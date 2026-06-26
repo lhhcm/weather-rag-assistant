@@ -57,6 +57,14 @@
       #insight-source { font-size: 12px; line-height: 1.45; font-weight: 800; }
       #insight-list { font-size: clamp(16px, 4.2vw, 18px); line-height: 1.75; font-weight: 650; color: #374151; }
       #insight-list li { margin-bottom: 6px; }
+      .view-panel.hidden, .decision-panel.hidden { display: none; }
+      .module-action { min-height: 44px; transition: transform .16s ease, background .16s ease, color .16s ease; }
+      .module-action:active { transform: scale(.97); }
+      .feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .feature-card { border: 1px solid #e1e5e4; background: #fff; border-radius: 8px; padding: 14px; }
+      .feature-card h4 { font-size: 15px; line-height: 1.25; font-weight: 800; }
+      .feature-card p, .feature-card li { font-size: 13px; line-height: 1.55; color: #5d6469; }
+      .pill-button { border: 1px solid #e1e5e4; border-radius: 999px; padding: 9px 12px; font-size: 13px; font-weight: 800; background: #fff; }
       .shine { position: relative; overflow: hidden; }
       .shine::after { content: ""; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation: shine 4.8s ease-in-out infinite; pointer-events: none; }
       @keyframes shine { 0%, 55% { transform: translateX(-120%); } 78%, 100% { transform: translateX(120%); } }
@@ -83,6 +91,16 @@
     </header>
 
     <main class="mx-auto mt-16 max-w-2xl space-y-6 px-4 pt-6">
+      <section id="workspace-nav" class="sticky top-16 z-40 -mx-4 border-b border-line bg-background/95 px-4 py-3 backdrop-blur">
+        <div class="no-scrollbar flex gap-2 overflow-x-auto">
+          <button class="module-action rounded-full bg-primary px-4 py-2 text-sm font-bold text-white" data-view="decision" type="button">评估</button>
+          <button class="module-action rounded-full bg-white px-4 py-2 text-sm font-bold text-muted" data-view="compare" type="button">对比</button>
+          <button class="module-action rounded-full bg-white px-4 py-2 text-sm font-bold text-muted" data-view="calendar" type="button">日历</button>
+          <button class="module-action rounded-full bg-white px-4 py-2 text-sm font-bold text-muted" data-view="tools" type="button">工具</button>
+          <button class="module-action rounded-full bg-white px-4 py-2 text-sm font-bold text-muted" data-view="feedback" type="button">反馈</button>
+        </div>
+      </section>
+
       <section id="assess-section" class="glass-card rounded-xl p-4">
         <div class="mb-3 flex items-end justify-between">
           <div>
@@ -127,11 +145,15 @@
             <input id="children" type="checkbox" />
             包含儿童
           </label>
+          <label class="flex items-center gap-2 rounded-lg bg-fog p-2 text-sm text-muted">
+            <input id="elderly" type="checkbox" />
+            包含老人
+          </label>
           <button id="risk-submit" class="col-span-2 rounded-xl bg-primary py-3 text-sm font-bold text-white shine" type="submit">评估风险</button>
         </form>
       </section>
 
-      <section class="relative flex flex-col items-center py-2 text-center">
+      <section id="score-section" class="relative flex flex-col items-center py-2 text-center">
         <div class="relative mb-4 h-48 w-48">
           <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="40" fill="transparent" stroke="#e1e5e4" stroke-width="8"></circle>
@@ -187,7 +209,7 @@
         <div id="best-hours" class="no-scrollbar flex gap-3 overflow-x-auto pb-2"></div>
       </section>
 
-      <section class="space-y-3">
+      <section id="notice-section" class="space-y-3">
         <h3 class="px-1 text-xs font-bold text-muted">通知与决策模板</h3>
         <div class="rounded-xl border border-dashed border-line bg-white p-4">
           <div class="mb-3 flex items-start justify-between">
@@ -209,12 +231,156 @@
         </div>
       </section>
 
+      <section id="compare-section" class="view-panel hidden space-y-4">
+        <div class="glass-card rounded-xl p-4">
+          <p class="text-[11px] font-bold text-muted">活动路线风险图</p>
+          <h2 class="mt-1 text-2xl font-bold">逐点判断雷雨、风、热、降水</h2>
+          <textarea id="compare-locations" class="mt-3 w-full rounded-lg border-line text-sm" rows="4">广州天河体育中心
+广州海珠湖
+广州白云山</textarea>
+          <button id="compare-run" class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white" type="button">
+            <span class="material-symbols-outlined text-lg">compare_arrows</span>
+            生成路线风险图
+          </button>
+        </div>
+        <div id="compare-results" class="space-y-3"></div>
+      </section>
+
+      <section id="calendar-section" class="view-panel hidden space-y-4">
+        <div class="glass-card rounded-xl p-4">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-[11px] font-bold text-muted">活动风险日历</p>
+              <h2 class="mt-1 text-2xl font-bold">未来 7 天适合度</h2>
+            </div>
+            <button id="calendar-run" class="rounded-full bg-primary px-4 py-2 text-sm font-bold text-white" type="button">生成</button>
+          </div>
+          <p class="mt-2 text-sm leading-relaxed text-muted">沿用当前地点、活动、开始时间和时长，逐日计算风险。</p>
+        </div>
+        <div id="calendar-results" class="grid grid-cols-2 gap-2"></div>
+      </section>
+
+      <section id="tools-section" class="view-panel hidden space-y-4">
+        <div class="glass-card rounded-xl p-4">
+          <p class="text-[11px] font-bold text-muted">户外行动工具箱</p>
+          <h2 class="mt-1 text-2xl font-bold">从天气到执行</h2>
+          <p class="mt-2 text-sm leading-relaxed text-muted">先完成一次评估，工具会按当前风险自动更新。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="mb-3 flex items-center justify-between">
+            <h4>场景模板</h4>
+            <span class="material-symbols-outlined text-muted">category</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="scenario-action pill-button" data-activity="cycling" data-time="18:00" data-duration="2" type="button">骑行助手</button>
+            <button class="scenario-action pill-button" data-activity="running" data-time="07:00" data-duration="1" type="button">跑步助手</button>
+            <button class="scenario-action pill-button" data-activity="camping" data-time="16:00" data-duration="6" type="button">露营助手</button>
+            <button class="scenario-action pill-button" data-activity="parent_child" data-time="10:00" data-duration="3" type="button">亲子出行</button>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="mb-3 flex items-center justify-between">
+            <h4>地图点选 / 坐标</h4>
+            <span class="material-symbols-outlined text-muted">map</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="map-point pill-button" data-location="23.1402,113.3270" type="button">天河体育中心</button>
+            <button class="map-point pill-button" data-location="23.0720,113.3217" type="button">海珠湖</button>
+            <button class="map-point pill-button" data-location="23.1824,113.2977" type="button">白云山</button>
+            <button class="map-point pill-button" data-location="22.9571,113.3222" type="button">大夫山</button>
+          </div>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <input id="lat-input" class="rounded-lg border-line text-sm" placeholder="纬度 23.1402" />
+            <input id="lon-input" class="rounded-lg border-line text-sm" placeholder="经度 113.3270" />
+          </div>
+          <button id="apply-coordinates" class="mt-2 w-full rounded-xl bg-fog py-2 text-sm font-bold" type="button">使用坐标评估</button>
+        </div>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h4>装备清单</h4>
+            <ul id="equipment-list" class="mt-2 list-inside list-disc space-y-1"></ul>
+          </div>
+          <div class="feature-card">
+            <h4>取消/改期阈值</h4>
+            <ul id="threshold-list" class="mt-2 list-inside list-disc space-y-1"></ul>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="mb-3 flex items-center justify-between">
+            <h4>人群适配决策</h4>
+            <span class="material-symbols-outlined text-muted">groups</span>
+          </div>
+          <div id="crowd-adaptation" class="grid grid-cols-1 gap-2"></div>
+        </div>
+
+        <div class="feature-card">
+          <div class="mb-3 flex items-center justify-between">
+            <h4>风险解释卡片</h4>
+            <span class="material-symbols-outlined text-muted">info</span>
+          </div>
+          <div id="explain-cards" class="grid grid-cols-1 gap-2"></div>
+        </div>
+
+        <div class="feature-card">
+          <div class="mb-3 flex items-center justify-between">
+            <h4>应急预案</h4>
+            <button id="copy-emergency" class="rounded-lg bg-fog px-3 py-1 text-xs font-bold" type="button">复制</button>
+          </div>
+          <div id="emergency-plan" class="space-y-2 text-sm leading-relaxed text-muted"></div>
+        </div>
+
+        <div class="feature-card">
+          <div class="mb-3 flex items-center justify-between">
+            <h4>活动组织者模式</h4>
+            <span class="material-symbols-outlined text-muted">campaign</span>
+          </div>
+          <div id="organizer-plan" class="space-y-2 text-sm leading-relaxed text-muted"></div>
+        </div>
+
+        <div class="feature-card">
+          <div class="mb-3 flex items-center justify-between">
+            <h4>临近天气复查提醒</h4>
+            <button id="add-subscription" class="rounded-lg bg-primary px-3 py-1 text-xs font-bold text-white" type="button">添加</button>
+          </div>
+          <p id="subscription-preview">活动前 6 小时、2 小时、30 分钟自动复查，风险升高时生成改期/取消通知。</p>
+          <div id="reminder-list" class="mt-3 grid grid-cols-3 gap-2"></div>
+          <div id="subscription-list" class="mt-3 space-y-2"></div>
+        </div>
+      </section>
+
+      <section id="feedback-section" class="view-panel hidden space-y-4">
+        <div class="glass-card rounded-xl p-4">
+          <p class="text-[11px] font-bold text-muted">活动后反馈</p>
+          <h2 class="mt-1 text-2xl font-bold">让推荐更懂你</h2>
+          <p class="mt-2 text-sm leading-relaxed text-muted">记录实际体验，用来校准个人化风险阈值。</p>
+        </div>
+        <div class="feature-card">
+          <h4>这次体验如何？</h4>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button class="feedback-action pill-button" data-feedback="实际很舒服" type="button">实际很舒服</button>
+            <button class="feedback-action pill-button" data-feedback="太热" type="button">太热</button>
+            <button class="feedback-action pill-button" data-feedback="风太大" type="button">风太大</button>
+            <button class="feedback-action pill-button" data-feedback="下雨误判" type="button">下雨误判</button>
+          </div>
+          <textarea id="feedback-note" class="mt-3 w-full rounded-lg border-line text-sm" rows="3" placeholder="补充：哪个地点、哪个时间、实际感受如何"></textarea>
+        </div>
+        <div class="feature-card">
+          <h4>历史复盘 / 经验库</h4>
+          <div id="personal-model" class="mt-2 text-sm leading-relaxed text-muted">暂无反馈。完成一次记录后，这里会提示你的偏好。</div>
+        </div>
+        <div id="feedback-history" class="space-y-2"></div>
+      </section>
+
       <section id="settings-panel" class="hidden rounded-xl border border-line bg-white p-4">
         <h3 class="text-sm font-bold">功能菜单</h3>
         <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-target="assess-section" type="button">回到评估</button>
-          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-target="plan-section" type="button">查看推荐时段</button>
-          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-target="history-section" type="button">查看通知模板</button>
+          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-view="decision" type="button">回到评估</button>
+          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-view="compare" type="button">多地点对比</button>
+          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-view="tools" type="button">行动工具箱</button>
           <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-target="qa-toggle" type="button">打开天气AI</button>
         </div>
         <p class="mt-3 text-xs leading-relaxed text-muted">当前版本包含活动风险评估、推荐时段、通知模板和气象知识问答。天气数据来自 Open-Meteo，未来日期为预报，过去日期为历史天气回放。</p>
@@ -235,10 +401,11 @@
     </main>
 
     <nav class="fixed bottom-0 z-50 mx-auto flex h-20 w-full max-w-2xl items-center justify-around border-t border-line bg-white px-2 left-0 right-0">
-      <button class="nav-action flex scale-95 flex-col items-center rounded-xl bg-carbon px-3 py-1.5 text-white" data-target="assess-section" type="button"><span class="material-symbols-outlined">analytics</span><span class="text-[10px] font-bold">评估</span></button>
-      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-target="plan-section" type="button"><span class="material-symbols-outlined">calendar_today</span><span class="text-[10px] font-bold">计划</span></button>
-      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-target="history-section" type="button"><span class="material-symbols-outlined">history</span><span class="text-[10px] font-bold">历史</span></button>
-      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-target="settings-panel" type="button"><span class="material-symbols-outlined">settings</span><span class="text-[10px] font-bold">设置</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center rounded-xl bg-carbon px-3 py-1.5 text-white" data-view="decision" type="button"><span class="material-symbols-outlined">analytics</span><span class="text-[10px] font-bold">评估</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-view="compare" type="button"><span class="material-symbols-outlined">compare_arrows</span><span class="text-[10px] font-bold">对比</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-view="calendar" type="button"><span class="material-symbols-outlined">calendar_today</span><span class="text-[10px] font-bold">日历</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-view="tools" type="button"><span class="material-symbols-outlined">home_repair_service</span><span class="text-[10px] font-bold">工具</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-view="feedback" type="button"><span class="material-symbols-outlined">tune</span><span class="text-[10px] font-bold">反馈</span></button>
     </nav>
     <script src="/static/mobile.js"></script>
   </body>
