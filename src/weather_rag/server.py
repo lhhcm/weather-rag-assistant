@@ -86,7 +86,7 @@ class WeatherRagHandler(BaseHTTPRequestHandler):
 
 def run(host: str = HOST, port: int = PORT) -> None:
     httpd = ThreadingHTTPServer((host, port), WeatherRagHandler)
-    print(f"Outdoor Weather Safety Assistant running at http://{host}:{port}")
+    print(f"Outdoor Activity Weather Risk Decision Assistant running at http://{host}:{port}")
     httpd.serve_forever()
 
 
