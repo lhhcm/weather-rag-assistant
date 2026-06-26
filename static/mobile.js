@@ -73,6 +73,76 @@ function planPayload(overrides = {}) {
   };
 }
 
+function localDateValue(offsetDays = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+}
+
+function questionDateText(value) {
+  if (!value) return "明天";
+  if (value === localDateValue(0)) return "今天";
+  if (value === localDateValue(1)) return "明天";
+  return `${value} `;
+}
+
+function questionPlaceText(location) {
+  return location?.trim() || "当前地点";
+}
+
+function quickQuestionsForPlan() {
+  const payload = planPayload();
+  const place = questionPlaceText(payload.location);
+  const day = questionDateText(payload.date);
+  const activity = activityLabel(payload.activity_type);
+  const shared = `${place}${day}${activity}`;
+  const templates = {
+    cycling: [
+      `${shared}适合吗？重点看雷雨、阵风和路面湿滑。`,
+      `${place}${day}骑行需要带雨具、防晒还是改期？`,
+      `如果${activity}途中遇到雷暴或强阵风，应该怎么处理？`
+    ],
+    running: [
+      `${shared}适合吗？重点看体感温度、降水和紫外线。`,
+      `${place}${day}跑步推荐什么时段，应该避开几点？`,
+      `高温闷热天气跑步有哪些中暑风险和补水建议？`
+    ],
+    camping: [
+      `${shared}适合吗？重点看夜间降雨、雷暴和阵风。`,
+      `${place}${day}露营需要准备哪些防雨防风装备？`,
+      `雷暴或大风天气露营应该取消还是改室内方案？`
+    ],
+    hiking: [
+      `${shared}适合吗？重点看雷暴、降雨、能见度和体感温度。`,
+      `${place}${day}徒步登山推荐什么时段出发？`,
+      `山地徒步遇到雷雨和短时强降水应该怎么避险？`
+    ],
+    outdoor_event: [
+      `${shared}适合组织吗？需要取消还是保留备用方案？`,
+      `${place}${day}户外活动群通知应该怎么写？`,
+      `多人户外活动遇到雷暴、降雨或高温时怎么做应急预案？`
+    ],
+    parent_child: [
+      `${shared}适合吗？重点看儿童热压力、降雨和雷暴。`,
+      `${place}${day}亲子出行需要带什么装备？`,
+      `带儿童户外活动遇到高温或雷雨应该怎么调整计划？`
+    ]
+  };
+  return templates[payload.activity_type] || [
+    `${shared}适合吗？`,
+    `${place}${day}需要带伞或防晒吗？`,
+    `这个天气做${activity}有哪些风险？`
+  ];
+}
+
+function renderQaQuickQuestions() {
+  $("#qa-quick-questions").innerHTML = quickQuestionsForPlan().map((question) => `
+    <button class="qa-quick rounded-full border border-line bg-fog px-3 py-2 text-left text-xs font-bold leading-snug text-muted" data-question="${escapeHtml(question)}" type="button">
+      ${escapeHtml(question)}
+    </button>
+  `).join("");
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -143,6 +213,7 @@ function restoreQueryHistory(index) {
   $("#children").checked = Boolean(payload.children);
   $("#elderly").checked = Boolean(payload.elderly);
   $("#geolocation-status").textContent = "已从查询历史回填，点击“评估风险”可重新拉取最新天气。";
+  renderQaQuickQuestions();
   activateView("decision");
 }
 
@@ -166,6 +237,7 @@ function requestCurrentLocation() {
     $("#location").value = `${latitude},${longitude}`;
     $("#top-location").textContent = "当前位置坐标";
     $("#geolocation-status").textContent = `已获取当前位置：${latitude}, ${longitude}。点击“评估风险”开始查询。`;
+    renderQaQuickQuestions();
     $("#use-current-location").disabled = false;
   }, (error) => {
     const messages = {
@@ -670,6 +742,7 @@ function scrollToTarget(targetId) {
 
 function openWeatherAi() {
   activateView("decision");
+  renderQaQuickQuestions();
   $("#qa-panel").classList.remove("hidden");
   $("#qa-toggle").scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -678,6 +751,7 @@ function applyScenario(button) {
   $("#activity").value = button.dataset.activity;
   $("#time").value = button.dataset.time;
   $("#duration").value = button.dataset.duration;
+  renderQaQuickQuestions();
   activateView("decision");
 }
 
@@ -746,10 +820,16 @@ function init() {
   renderDerivedTools(null);
   renderFeedback();
   renderQueryHistory();
+  renderQaQuickQuestions();
 
   $("#risk-form").addEventListener("submit", (event) => {
     event.preventDefault();
     evaluateRisk();
+  });
+  ["#location", "#activity", "#date", "#time", "#duration"].forEach((selector) => {
+    const node = $(selector);
+    node.addEventListener("input", renderQaQuickQuestions);
+    node.addEventListener("change", renderQaQuickQuestions);
   });
   $("#use-current-location").addEventListener("click", requestCurrentLocation);
   $("#clear-query-history").addEventListener("click", () => {
@@ -776,9 +856,17 @@ function init() {
     $("#people").value = "4";
     $("#children").checked = false;
     $("#elderly").checked = false;
+    renderQaQuickQuestions();
   });
   $("#qa-toggle").addEventListener("click", () => {
+    renderQaQuickQuestions();
     $("#qa-panel").classList.toggle("hidden");
+  });
+  $("#qa-quick-questions").addEventListener("click", (event) => {
+    const button = event.target.closest(".qa-quick");
+    if (!button) return;
+    $("#qa-question").value = button.dataset.question || "";
+    $("#qa-question").focus();
   });
   $("#qa-submit").addEventListener("click", askKnowledge);
   $("#copy-notice").addEventListener("click", async () => {
@@ -800,6 +888,7 @@ function init() {
     const lat = $("#lat-input").value.trim();
     const lon = $("#lon-input").value.trim();
     if (lat && lon) $("#location").value = `${lat},${lon}`;
+    renderQaQuickQuestions();
     activateView("decision");
   });
   $("#menu-toggle").addEventListener("click", () => {
@@ -820,6 +909,7 @@ function init() {
   document.querySelectorAll(".map-point").forEach((button) => {
     button.addEventListener("click", () => {
       $("#location").value = button.dataset.location;
+      renderQaQuickQuestions();
       activateView("decision");
     });
   });

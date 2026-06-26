@@ -407,6 +407,10 @@
           问天气AI
         </button>
         <section id="qa-panel" class="mt-3 hidden space-y-3 rounded-xl border border-line bg-white p-4">
+          <div>
+            <p class="mb-2 text-xs font-bold text-muted">根据当前评估活动生成</p>
+            <div id="qa-quick-questions" class="flex flex-wrap gap-2"></div>
+          </div>
           <textarea id="qa-question" class="w-full rounded-lg border-line text-sm" rows="3" placeholder="例如：雷暴天气为什么不适合骑行？"></textarea>
           <button id="qa-submit" class="w-full rounded-xl bg-primary py-3 text-sm font-bold text-white" type="button">提交问天气AI</button>
           <p id="qa-backend" class="rounded-lg bg-fog px-3 py-2 text-xs font-bold text-muted">当前未提问</p>
