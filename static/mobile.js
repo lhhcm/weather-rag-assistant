@@ -232,7 +232,7 @@ function pickInsight(data) {
       dot: visual.dot,
       image: visual.image,
       title: mood.title,
-      body: `${mood.quote}${mood.note}`,
+      body: `${mood.quote} ${mood.note}`,
       source: "好天气心情卡 · AI生成示意配图",
       details: ["保持补水和防晒，轻装出发。", "把最佳时段设为提醒，临近活动前再复查一次天气。", "愿今天的风刚好，路也刚好。"]
     };
@@ -637,9 +637,6 @@ function init() {
     $("#people").value = "4";
     $("#children").checked = false;
     $("#elderly").checked = false;
-  });
-  $("#toggle-insight").addEventListener("click", () => {
-    $("#insight-details").classList.toggle("hidden");
   });
   $("#qa-toggle").addEventListener("click", () => {
     $("#qa-panel").classList.toggle("hidden");
