@@ -111,16 +111,21 @@ function renderQueryHistory() {
   $("#query-history-list").innerHTML = state.queryHistory.map((item, index) => {
     const meta = levelMeta(item.level);
     return `
-      <button class="query-history-item w-full rounded-lg border border-line bg-white p-3 text-left active:scale-[.99]" data-index="${index}" type="button">
+      <div class="query-history-item rounded-lg border border-line bg-white p-3 active:scale-[.99]" data-index="${index}">
         <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
+          <button class="query-history-restore min-w-0 flex-1 text-left" data-index="${index}" type="button">
             <p class="truncate text-sm font-bold">${escapeHtml(item.displayLocation)}</p>
             <p class="mt-1 text-xs text-muted">${escapeHtml(item.activity)} · ${escapeHtml(item.time)} · ${escapeHtml(item.duration)}小时</p>
+            <p class="mt-2 truncate text-xs text-muted">${escapeHtml(item.weather)} · ${escapeHtml(item.createdAt)}</p>
+          </button>
+          <div class="flex shrink-0 items-center gap-2">
+            <span class="rounded-full px-2 py-1 text-xs font-bold ${meta.bg}">${escapeHtml(item.level)} · ${escapeHtml(item.score)}</span>
+            <button class="delete-query-history rounded bg-fog p-1 text-muted" data-index="${index}" type="button" aria-label="删除这条历史" title="删除这条历史">
+              <span class="material-symbols-outlined text-base">close</span>
+            </button>
           </div>
-          <span class="shrink-0 rounded-full px-2 py-1 text-xs font-bold ${meta.bg}">${escapeHtml(item.level)} · ${escapeHtml(item.score)}</span>
         </div>
-        <p class="mt-2 truncate text-xs text-muted">${escapeHtml(item.weather)} · ${escapeHtml(item.createdAt)}</p>
-      </button>
+      </div>
     `;
   }).join("") || `<div class="rounded-lg border border-dashed border-line bg-white p-3 text-sm text-muted">暂无查询历史。</div>`;
 }
@@ -139,6 +144,13 @@ function restoreQueryHistory(index) {
   $("#elderly").checked = Boolean(payload.elderly);
   $("#geolocation-status").textContent = "已从查询历史回填，点击“评估风险”可重新拉取最新天气。";
   activateView("decision");
+}
+
+function deleteQueryHistory(index) {
+  state.queryHistory.splice(index, 1);
+  localStorage.setItem("meteorisk_query_history", JSON.stringify(state.queryHistory));
+  renderQueryHistory();
+  $("#geolocation-status").textContent = "已删除这条查询历史。";
 }
 
 function requestCurrentLocation() {
@@ -738,9 +750,14 @@ function init() {
     $("#geolocation-status").textContent = "查询历史已清空。";
   });
   $("#query-history-list").addEventListener("click", (event) => {
-    const button = event.target.closest(".query-history-item");
-    if (!button) return;
-    restoreQueryHistory(Number(button.dataset.index));
+    const deleteButton = event.target.closest(".delete-query-history");
+    if (deleteButton) {
+      deleteQueryHistory(Number(deleteButton.dataset.index));
+      return;
+    }
+    const restoreButton = event.target.closest(".query-history-restore");
+    if (!restoreButton) return;
+    restoreQueryHistory(Number(restoreButton.dataset.index));
   });
   $("#fill-demo").addEventListener("click", () => {
     $("#location").value = "广州天河体育中心";

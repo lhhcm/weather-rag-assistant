@@ -114,14 +114,10 @@
             活动地点 / 地标 / 坐标
             <input id="location" class="mt-1 w-full rounded-lg border-line text-sm" value="广州天河体育中心" placeholder="如：广州海珠湖 / 23.1402,113.3270" />
           </label>
-          <div class="col-span-2 grid grid-cols-2 gap-2">
-            <button id="use-current-location" class="flex items-center justify-center gap-1 rounded-lg border border-line bg-white py-2 text-sm font-bold" type="button">
+          <div class="col-span-2">
+            <button id="use-current-location" class="flex w-full items-center justify-center gap-1 rounded-lg border border-line bg-white py-2 text-sm font-bold" type="button">
               <span class="material-symbols-outlined text-base">my_location</span>
               使用当前位置
-            </button>
-            <button id="clear-query-history" class="flex items-center justify-center gap-1 rounded-lg border border-line bg-white py-2 text-sm font-bold text-muted" type="button">
-              <span class="material-symbols-outlined text-base">delete</span>
-              清空历史
             </button>
           </div>
           <p id="geolocation-status" class="col-span-2 text-xs leading-relaxed text-muted">点击后会向浏览器申请定位权限，并用经纬度作为地点级天气查询。</p>
@@ -168,6 +164,10 @@
             <span class="text-[11px] font-bold text-muted">点击回填</span>
           </div>
           <div id="query-history-list" class="space-y-2"></div>
+          <button id="clear-query-history" class="mt-3 flex w-full items-center justify-center gap-1 rounded-lg border border-line bg-white py-2 text-sm font-bold text-muted" type="button">
+            <span class="material-symbols-outlined text-base">delete</span>
+            清空全部历史
+          </button>
         </div>
       </section>
 
