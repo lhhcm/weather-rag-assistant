@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.weather_rag.assistant import classify_intent, detect_period, should_fetch_weather
+from src.weather_rag.assistant import classify_intent, detect_period, is_weather_domain_question, should_fetch_weather
 from src.weather_rag.rag import LocalVectorStore, load_documents
 
 
@@ -33,3 +33,9 @@ def test_weather_fetch_decision() -> None:
     assert should_fetch_weather("厄尔尼诺是什么？") is False
     assert should_fetch_weather("副热带高压为什么会影响高温？") is False
     assert should_fetch_weather("广州明天适合骑车吗？") is True
+
+
+def test_domain_guard() -> None:
+    assert is_weather_domain_question("广州明天适合骑车吗？") is True
+    assert is_weather_domain_question("厄尔尼诺是什么？") is True
+    assert is_weather_domain_question("怎么做红烧肉？") is False

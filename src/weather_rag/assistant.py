@@ -80,6 +80,31 @@ WEATHER_DECISION_TERMS = [
 
 TIME_TERMS = ["今天", "明天", "后天", "现在", "当前", "实时", "未来", "周末", "今晚", "早上", "下午", "晚上"]
 
+OUTDOOR_WEATHER_TERMS = [
+    "骑行",
+    "骑车",
+    "跑步",
+    "徒步",
+    "登山",
+    "露营",
+    "野餐",
+    "户外",
+    "出行",
+    "通勤",
+    "活动",
+    "比赛",
+    "路线",
+    "安全",
+    "风险",
+    "取消",
+    "改期",
+]
+
+OUT_OF_SCOPE_ANSWER = (
+    "我主要回答户外活动天气风险、国内地点天气决策和气象专业术语问题。"
+    "你可以这样问：广州明天适合骑行吗？雷暴天气为什么不适合露营？厄尔尼诺是什么？"
+)
+
 
 class WeatherRagAssistant:
     def __init__(self, vector_store: LocalVectorStore | None = None) -> None:
@@ -89,6 +114,17 @@ class WeatherRagAssistant:
         cleaned_question = question.strip()
         if not cleaned_question:
             return {"error": "问题不能为空"}
+        if not is_weather_domain_question(cleaned_question):
+            return {
+                "answer": OUT_OF_SCOPE_ANSWER,
+                "location": "非天气问题",
+                "intent": "非天气领域",
+                "period": detect_period(cleaned_question),
+                "weather": None,
+                "weather_error": "",
+                "risks": [],
+                "sources": [],
+            }
 
         fetch_required = should_fetch_weather(cleaned_question)
         city = detect_location(cleaned_question) if fetch_required else ""
@@ -148,6 +184,28 @@ def detect_period(question: str) -> str:
 def is_meteorology_concept_question(question: str) -> bool:
     lower = question.lower()
     return any(term.lower() in lower for term in METEOROLOGY_TERMS)
+
+
+def is_weather_domain_question(question: str) -> bool:
+    lower = question.lower()
+    explicit_location = find_explicit_location(question)
+    has_weather_term = any(term in question for term in WEATHER_DECISION_TERMS)
+    has_outdoor_term = any(term in question for term in OUTDOOR_WEATHER_TERMS)
+    has_time_term = any(term in question for term in TIME_TERMS)
+    asks_definition = any(term in question for term in ["是什么", "为什么", "解释", "原理", "区别", "概念", "术语"])
+    concept_question = is_meteorology_concept_question(question)
+
+    if concept_question:
+        return True
+    if has_weather_term:
+        return True
+    if has_outdoor_term and (has_time_term or explicit_location or asks_definition):
+        return True
+    if explicit_location and has_time_term:
+        return True
+    if "weather" in lower:
+        return True
+    return False
 
 
 def should_fetch_weather(question: str) -> bool:

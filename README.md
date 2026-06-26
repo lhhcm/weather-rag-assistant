@@ -8,6 +8,7 @@
 - LangGraph 状态图：将问题校验、意图识别、天气查询、RAG 检索、LangChain 答案生成拆成可观测节点。
 - LangChain 问答链：将天气数据、风险标签和 RAG 来源组装为提示词；配置 LLM Key 后可调用 OpenAI 兼容大模型，否则使用本地 RAG 兜底。
 - RAG 知识库：内置气象文档，返回带来源的回答。
+- 领域守卫：非天气、非气象术语、非户外活动天气风险问题会被直接拦截，不进入天气 API 或 RAG 检索。
 - 向量检索：默认使用本地 Hash Embedding + 余弦相似度，零依赖可跑；可扩展到 LangChain + Chroma。
 - 可解释输出：答案拆分为结论、天气依据、知识依据、行动建议和引用来源。
 - 前端作品化：提供完整 Web UI，可直接用于演示。
@@ -115,6 +116,7 @@ flowchart LR
     A["validate_question"] --> B["understand_question"]
     B -->|"需要天气"| C["fetch_weather"]
     B -->|"纯知识问题"| D["retrieve_knowledge"]
+    B -->|"非天气问题"| E["generate_answer"]
     C --> D
     D --> E["generate_answer"]
 ```
@@ -122,7 +124,7 @@ flowchart LR
 节点职责：
 
 - `validate_question`：清洗问题，拦截空输入。
-- `understand_question`：识别城市、意图和今天/明天时段。
+- `understand_question`：识别城市、意图和今天/明天时段，同时执行领域判断；无关问题会直接进入边界提示，不检索知识库。
 - `fetch_weather`：调用 Open-Meteo API 并计算目标时段风险。
 - `retrieve_knowledge`：组合问题、天气摘要和风险标签，检索气象知识库。
 - `generate_answer`：生成带天气依据、知识依据和行动建议的回答。
@@ -195,6 +197,7 @@ weather-rag-assistant/
 - 基于 LangGraph 设计天气问答状态图，将问题理解、天气 API、风险评估、RAG 检索和 LangChain 答案生成拆分为可观测节点。
 - 搭建 RAG 问答链路，将气象知识文档切块、向量化并按 Top-K 相似度召回，为天气建议提供可追溯来源。
 - 使用 LangChain 将天气数据、风险标签和检索来源组装为问答链，支持配置 OpenAI 兼容 API 后调用真实大模型生成回答。
+- 增加非天气领域拦截，避免美食、代码、历史等无关问题误检索气象知识库并产生偏题回答。
 - 封装 Open-Meteo 地理编码与天气预报接口，使用中国城市范围过滤，实现国内城市识别、实时天气摘要和降水/强风/高温/紫外线风险标签。
 - 设计无 Key 可演示的降级方案，使用本地 Hash Embedding 与模板生成保证项目在面试环境稳定运行。
 - 实现前后端一体化 Web Demo，展示问答、天气指标、引用来源和系统状态，提升作品集可展示性。

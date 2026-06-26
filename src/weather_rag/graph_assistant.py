@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
-from .assistant import build_retrieval_query, classify_intent, detect_period, should_fetch_weather, trim_text
+from .assistant import (
+    OUT_OF_SCOPE_ANSWER,
+    build_retrieval_query,
+    classify_intent,
+    detect_period,
+    is_weather_domain_question,
+    should_fetch_weather,
+    trim_text,
+)
 from .langchain_pipeline import LangChainAnswerGenerator
 from .rag import LocalVectorStore, SearchResult
 from .weather_api import WeatherApiError, assess_risks, detect_location, fetch_weather
@@ -15,6 +23,8 @@ class WeatherRagState(TypedDict, total=False):
     location: str
     intent: str
     period: str
+    domain_relevant: bool
+    out_of_scope: bool
     fetch_required: bool
     weather: dict[str, Any] | None
     weather_error: str
@@ -78,12 +88,15 @@ class GraphWeatherRagAssistant:
     def understand_question(self, state: WeatherRagState) -> WeatherRagState:
         question = state.get("cleaned_question", "")
         trace = [*state.get("graph_trace", []), "understand_question"]
-        fetch_required = should_fetch_weather(question)
+        domain_relevant = is_weather_domain_question(question)
+        fetch_required = should_fetch_weather(question) if domain_relevant else False
         return {
             **state,
             "location": detect_location(question) if fetch_required else "",
-            "intent": classify_intent(question),
+            "intent": classify_intent(question) if domain_relevant else "非天气领域",
             "period": detect_period(question),
+            "domain_relevant": domain_relevant,
+            "out_of_scope": not domain_relevant,
             "fetch_required": fetch_required,
             "graph_trace": trace,
         }
@@ -113,6 +126,15 @@ class GraphWeatherRagAssistant:
         trace = [*state.get("graph_trace", []), "generate_answer"]
         if state.get("error"):
             return {**state, "answer": state["error"], "graph_trace": trace}
+        if state.get("out_of_scope"):
+            return {
+                **state,
+                "answer": OUT_OF_SCOPE_ANSWER,
+                "answer_backend": "domain-guard",
+                "llm_connected": False,
+                "llm_model": "none",
+                "graph_trace": trace,
+            }
 
         answer = self.answer_generator.generate(
             state.get("cleaned_question", ""),
@@ -133,7 +155,9 @@ class GraphWeatherRagAssistant:
             "graph_trace": trace,
         }
 
-    def route_after_understanding(self, state: WeatherRagState) -> Literal["fetch_weather", "retrieve_knowledge"]:
+    def route_after_understanding(self, state: WeatherRagState) -> Literal["fetch_weather", "retrieve_knowledge", "generate_answer"]:
+        if state.get("out_of_scope"):
+            return "generate_answer"
         return "fetch_weather" if state.get("fetch_required") else "retrieve_knowledge"
 
     def _build_langgraph_app(self):
@@ -157,6 +181,7 @@ class GraphWeatherRagAssistant:
             {
                 "fetch_weather": "fetch_weather",
                 "retrieve_knowledge": "retrieve_knowledge",
+                "generate_answer": "generate_answer",
             },
         )
         graph.add_edge("fetch_weather", "retrieve_knowledge")
@@ -169,6 +194,8 @@ class GraphWeatherRagAssistant:
         if state.get("error"):
             return self.generate_answer(state)
         state = self.understand_question(state)
+        if state.get("out_of_scope"):
+            return self.generate_answer(state)
         if state.get("fetch_required"):
             state = self.fetch_weather_node(state)
         state = self.retrieve_knowledge(state)
@@ -181,9 +208,11 @@ class GraphWeatherRagAssistant:
         results = state.get("results", [])
         return {
             "answer": state.get("answer", ""),
-            "location": state.get("location") or "知识问答",
+            "location": "非天气问题" if state.get("out_of_scope") else state.get("location") or "知识问答",
             "intent": state.get("intent", "综合"),
             "period": state.get("period", "today"),
+            "domain_relevant": bool(state.get("domain_relevant", True)),
+            "out_of_scope": bool(state.get("out_of_scope", False)),
             "weather": state.get("weather"),
             "weather_error": state.get("weather_error", ""),
             "risks": state.get("risks", []),

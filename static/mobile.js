@@ -629,9 +629,13 @@ async function askKnowledge() {
     const data = await response.json();
     if (!response.ok || data.error) throw new Error(data.error || "请求失败");
     $("#qa-answer").textContent = data.answer;
-    $("#qa-backend").textContent = data.llm?.connected
-      ? `已接入大模型：${data.answer_backend} · ${data.llm.model}`
-      : `未接入外部大模型：${data.answer_backend || "langchain-local-rag"} · 本地 RAG 兜底`;
+    if (data.answer_backend === "domain-guard") {
+      $("#qa-backend").textContent = "非天气领域问题已拦截";
+    } else {
+      $("#qa-backend").textContent = data.llm?.connected
+        ? `已接入大模型：${data.answer_backend} · ${data.llm.model}`
+        : `未接入外部大模型：${data.answer_backend || "langchain-local-rag"} · 本地 RAG 兜底`;
+    }
   } catch (error) {
     $("#qa-answer").textContent = `请求失败：${error.message}`;
     $("#qa-backend").textContent = "请求失败";

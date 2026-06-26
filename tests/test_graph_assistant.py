@@ -33,3 +33,16 @@ def test_concept_question_does_not_default_to_shanghai() -> None:
     assert response["weather"] is None
     assert "fetch_weather" not in response["graph"]["trace"]
     assert any("厄尔尼诺" in source["title"] for source in response["sources"])
+
+
+def test_out_of_scope_question_is_blocked_before_retrieval() -> None:
+    store = LocalVectorStore.from_directory(ROOT / "data" / "weather_docs")
+    assistant = GraphWeatherRagAssistant(store)
+    response = assistant.ask("怎么做红烧肉？")
+
+    assert response["out_of_scope"] is True
+    assert response["location"] == "非天气问题"
+    assert response["answer_backend"] == "domain-guard"
+    assert response["sources"] == []
+    assert "retrieve_knowledge" not in response["graph"]["trace"]
+    assert "fetch_weather" not in response["graph"]["trace"]
