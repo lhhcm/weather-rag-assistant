@@ -16,7 +16,7 @@
 推荐用项目内虚拟环境：
 
 ```powershell
-cd E:\Unity\ProjectML\jianli\weather-rag-assistant
+cd weather-rag-assistant
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
@@ -26,7 +26,7 @@ python -m pip install langgraph pytest
 启动服务：
 
 ```powershell
-cd E:\Unity\ProjectML\jianli\weather-rag-assistant
+cd weather-rag-assistant
 python -m src.weather_rag.server
 ```
 
