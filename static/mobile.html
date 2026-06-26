@@ -114,6 +114,17 @@
             活动地点 / 地标 / 坐标
             <input id="location" class="mt-1 w-full rounded-lg border-line text-sm" value="广州天河体育中心" placeholder="如：广州海珠湖 / 23.1402,113.3270" />
           </label>
+          <div class="col-span-2 grid grid-cols-2 gap-2">
+            <button id="use-current-location" class="flex items-center justify-center gap-1 rounded-lg border border-line bg-white py-2 text-sm font-bold" type="button">
+              <span class="material-symbols-outlined text-base">my_location</span>
+              使用当前位置
+            </button>
+            <button id="clear-query-history" class="flex items-center justify-center gap-1 rounded-lg border border-line bg-white py-2 text-sm font-bold text-muted" type="button">
+              <span class="material-symbols-outlined text-base">delete</span>
+              清空历史
+            </button>
+          </div>
+          <p id="geolocation-status" class="col-span-2 text-xs leading-relaxed text-muted">点击后会向浏览器申请定位权限，并用经纬度作为地点级天气查询。</p>
           <label class="text-xs font-bold text-muted">
             活动类型
             <select id="activity" class="mt-1 w-full rounded-lg border-line text-sm">
@@ -151,6 +162,13 @@
           </label>
           <button id="risk-submit" class="col-span-2 rounded-xl bg-primary py-3 text-sm font-bold text-white shine" type="submit">评估风险</button>
         </form>
+        <div id="query-history-section" class="mt-4 border-t border-line pt-4">
+          <div class="mb-2 flex items-center justify-between">
+            <h3 class="text-xs font-bold text-muted">查询历史</h3>
+            <span class="text-[11px] font-bold text-muted">点击回填</span>
+          </div>
+          <div id="query-history-list" class="space-y-2"></div>
+        </div>
       </section>
 
       <section id="score-section" class="relative flex flex-col items-center py-2 text-center">

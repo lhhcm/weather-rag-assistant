@@ -23,7 +23,8 @@ const images = {
 const state = {
   lastPlan: null,
   feedback: JSON.parse(localStorage.getItem("meteorisk_feedback") || "[]"),
-  subscriptions: JSON.parse(localStorage.getItem("meteorisk_subscriptions") || "[]")
+  subscriptions: JSON.parse(localStorage.getItem("meteorisk_subscriptions") || "[]"),
+  queryHistory: JSON.parse(localStorage.getItem("meteorisk_query_history") || "[]")
 };
 
 function fmt(value, suffix = "") {
@@ -70,6 +71,103 @@ function planPayload(overrides = {}) {
     elderly: $("#elderly").checked,
     ...overrides
   };
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;"
+  }[char]));
+}
+
+function saveQueryHistory(payload, data) {
+  const resolved = data.plan?.resolved_location || data.data_source?.location || {};
+  const historyItem = {
+    payload,
+    displayLocation: resolved.display_name || payload.location || "未命名地点",
+    activity: activityLabel(payload.activity_type),
+    time: `${payload.date} ${payload.start_time}`,
+    duration: payload.duration_hours,
+    score: data.score,
+    level: data.level,
+    weather: (data.weather_window?.weather_labels || []).join("、") || "天气平稳",
+    createdAt: new Date().toLocaleString("zh-CN")
+  };
+  const key = `${payload.location}|${payload.activity_type}|${payload.date}|${payload.start_time}|${payload.duration_hours}`;
+  state.queryHistory = state.queryHistory.filter((item) => {
+    const itemPayload = item.payload || {};
+    return `${itemPayload.location}|${itemPayload.activity_type}|${itemPayload.date}|${itemPayload.start_time}|${itemPayload.duration_hours}` !== key;
+  });
+  state.queryHistory.unshift(historyItem);
+  state.queryHistory = state.queryHistory.slice(0, 12);
+  localStorage.setItem("meteorisk_query_history", JSON.stringify(state.queryHistory));
+  renderQueryHistory();
+}
+
+function renderQueryHistory() {
+  $("#query-history-list").innerHTML = state.queryHistory.map((item, index) => {
+    const meta = levelMeta(item.level);
+    return `
+      <button class="query-history-item w-full rounded-lg border border-line bg-white p-3 text-left active:scale-[.99]" data-index="${index}" type="button">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-bold">${escapeHtml(item.displayLocation)}</p>
+            <p class="mt-1 text-xs text-muted">${escapeHtml(item.activity)} · ${escapeHtml(item.time)} · ${escapeHtml(item.duration)}小时</p>
+          </div>
+          <span class="shrink-0 rounded-full px-2 py-1 text-xs font-bold ${meta.bg}">${escapeHtml(item.level)} · ${escapeHtml(item.score)}</span>
+        </div>
+        <p class="mt-2 truncate text-xs text-muted">${escapeHtml(item.weather)} · ${escapeHtml(item.createdAt)}</p>
+      </button>
+    `;
+  }).join("") || `<div class="rounded-lg border border-dashed border-line bg-white p-3 text-sm text-muted">暂无查询历史。</div>`;
+}
+
+function restoreQueryHistory(index) {
+  const item = state.queryHistory[index];
+  if (!item?.payload) return;
+  const payload = item.payload;
+  $("#location").value = payload.location || "";
+  $("#activity").value = payload.activity_type || "outdoor_event";
+  $("#date").value = payload.date || $("#date").value;
+  $("#time").value = payload.start_time || "18:00";
+  $("#duration").value = payload.duration_hours || 2;
+  $("#people").value = payload.people || 1;
+  $("#children").checked = Boolean(payload.children);
+  $("#elderly").checked = Boolean(payload.elderly);
+  $("#geolocation-status").textContent = "已从查询历史回填，点击“评估风险”可重新拉取最新天气。";
+  activateView("decision");
+}
+
+function requestCurrentLocation() {
+  if (!navigator.geolocation) {
+    $("#geolocation-status").textContent = "当前浏览器不支持定位，请手动输入地标或经纬度。";
+    return;
+  }
+  $("#use-current-location").disabled = true;
+  $("#geolocation-status").textContent = "正在向浏览器申请定位权限...";
+  navigator.geolocation.getCurrentPosition((position) => {
+    const latitude = position.coords.latitude.toFixed(5);
+    const longitude = position.coords.longitude.toFixed(5);
+    $("#location").value = `${latitude},${longitude}`;
+    $("#top-location").textContent = "当前位置坐标";
+    $("#geolocation-status").textContent = `已获取当前位置：${latitude}, ${longitude}。点击“评估风险”开始查询。`;
+    $("#use-current-location").disabled = false;
+  }, (error) => {
+    const messages = {
+      1: "定位权限被拒绝，可在浏览器地址栏左侧权限设置中允许定位。",
+      2: "暂时无法获取定位，请检查系统定位服务或手动输入地点。",
+      3: "定位超时，请稍后重试或手动输入地点。"
+    };
+    $("#geolocation-status").textContent = messages[error.code] || "定位失败，请手动输入地点。";
+    $("#use-current-location").disabled = false;
+  }, {
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 300000
+  });
 }
 
 function updateRing(score, level) {
@@ -417,8 +515,10 @@ async function evaluateRisk() {
   setStatus("计算中");
   $("#conclusion").textContent = "正在拉取地点级真实小时预报并计算风险...";
   try {
-    const data = await fetchRisk(planPayload());
+    const payload = planPayload();
+    const data = await fetchRisk(payload);
     renderPlan(data);
+    saveQueryHistory(payload, data);
     setStatus("真实小时数据");
   } catch (error) {
     $("#conclusion").textContent = `评估失败：${error.message}`;
@@ -624,10 +724,23 @@ function init() {
   renderBestHours([]);
   renderDerivedTools(null);
   renderFeedback();
+  renderQueryHistory();
 
   $("#risk-form").addEventListener("submit", (event) => {
     event.preventDefault();
     evaluateRisk();
+  });
+  $("#use-current-location").addEventListener("click", requestCurrentLocation);
+  $("#clear-query-history").addEventListener("click", () => {
+    state.queryHistory = [];
+    localStorage.removeItem("meteorisk_query_history");
+    renderQueryHistory();
+    $("#geolocation-status").textContent = "查询历史已清空。";
+  });
+  $("#query-history-list").addEventListener("click", (event) => {
+    const button = event.target.closest(".query-history-item");
+    if (!button) return;
+    restoreQueryHistory(Number(button.dataset.index));
   });
   $("#fill-demo").addEventListener("click", () => {
     $("#location").value = "广州天河体育中心";
