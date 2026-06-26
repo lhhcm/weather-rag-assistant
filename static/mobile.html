@@ -1,0 +1,239 @@
+<!doctype html>
+<html class="light" lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
+    <title>METEORISK | 户外天气风险决策</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              background: "#f7f8f7",
+              surface: "#ffffff",
+              ink: "#151719",
+              muted: "#5d6469",
+              line: "#e1e5e4",
+              primary: "#0d1113",
+              carbon: "#1d2225",
+              fog: "#eef2f1",
+              cyan: "#16a3b8",
+              success: "#22c55e",
+              warning: "#eab308",
+              danger: "#ef4444"
+            },
+            fontFamily: {
+              sans: ["Hanken Grotesk", "Microsoft YaHei", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"]
+            },
+            borderRadius: {
+              xl: "8px",
+              lg: "6px"
+            }
+          }
+        }
+      };
+    </script>
+    <style>
+      body { min-height: max(884px, 100dvh); background: #f7f8f7; color: #151719; font-family: "Hanken Grotesk", "Microsoft YaHei", sans-serif; -webkit-font-smoothing: antialiased; }
+      .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 420, "GRAD" 0, "opsz" 24; }
+      .glass-card { background: rgba(255,255,255,.78); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.55); box-shadow: 0 18px 50px rgba(20,30,36,.10); }
+      .carbon-card { background: linear-gradient(145deg, #171c1f, #2a3033); color: white; box-shadow: 0 22px 60px rgba(12,17,19,.22); }
+      .risk-ring { stroke-dasharray: 251.2; stroke-dashoffset: var(--ring-offset, 251.2); transition: stroke-dashoffset .9s ease, stroke .3s ease; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .risk-high { border-left: 4px solid #ef4444; }
+      .risk-medium { border-left: 4px solid #eab308; }
+      .risk-low { border-left: 4px solid #22c55e; }
+      .weather-photo { background-size: cover; background-position: center; }
+      .shine { position: relative; overflow: hidden; }
+      .shine::after { content: ""; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation: shine 4.8s ease-in-out infinite; pointer-events: none; }
+      @keyframes shine { 0%, 55% { transform: translateX(-120%); } 78%, 100% { transform: translateX(120%); } }
+    </style>
+  </head>
+  <body class="pb-24">
+    <header class="fixed top-0 z-50 mx-auto flex h-16 w-full max-w-2xl items-center justify-between border-b border-line bg-white/85 px-4 backdrop-blur-md left-0 right-0">
+      <div class="flex items-center gap-2">
+        <button id="menu-toggle" class="rounded-lg p-1 active:bg-fog" type="button" aria-label="打开功能菜单">
+          <span class="material-symbols-outlined text-primary">menu</span>
+        </button>
+        <h1 class="text-xl font-bold tracking-tight">METEORISK</h1>
+      </div>
+      <div class="flex flex-col items-end">
+        <div class="flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">location_on</span>
+          <span id="top-location" class="font-mono text-[10px] uppercase">广州天河体育中心</span>
+        </div>
+        <div class="flex items-center gap-1 text-success">
+          <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-success"></span>
+          <span id="api-status" class="text-[10px] font-bold">真实小时数据</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto mt-16 max-w-2xl space-y-6 px-4 pt-6">
+      <section id="assess-section" class="glass-card rounded-xl p-4">
+        <div class="mb-3 flex items-end justify-between">
+          <div>
+            <p class="text-[11px] font-bold text-muted">地点级真实天气决策</p>
+            <h2 class="text-2xl font-bold leading-tight">地点级户外风控</h2>
+          </div>
+          <button id="fill-demo" class="rounded-full bg-fog px-3 py-1.5 text-xs font-bold" type="button">示例</button>
+        </div>
+        <form id="risk-form" class="grid grid-cols-2 gap-2">
+          <label class="col-span-2 text-xs font-bold text-muted">
+            活动地点 / 地标 / 坐标
+            <input id="location" class="mt-1 w-full rounded-lg border-line text-sm" value="广州天河体育中心" placeholder="如：广州海珠湖 / 23.1402,113.3270" />
+          </label>
+          <label class="text-xs font-bold text-muted">
+            活动类型
+            <select id="activity" class="mt-1 w-full rounded-lg border-line text-sm">
+              <option value="cycling">骑行</option>
+              <option value="running">跑步</option>
+              <option value="camping">露营</option>
+              <option value="hiking">徒步/登山</option>
+              <option value="outdoor_event">户外活动运营</option>
+              <option value="parent_child">亲子出行</option>
+            </select>
+          </label>
+          <label class="text-xs font-bold text-muted">
+            日期
+            <input id="date" class="mt-1 w-full rounded-lg border-line text-sm" type="date" />
+          </label>
+          <label class="text-xs font-bold text-muted">
+            开始
+            <input id="time" class="mt-1 w-full rounded-lg border-line text-sm" type="time" value="18:00" />
+          </label>
+          <label class="text-xs font-bold text-muted">
+            时长
+            <input id="duration" class="mt-1 w-full rounded-lg border-line text-sm" type="number" min="1" max="12" value="2" />
+          </label>
+          <label class="text-xs font-bold text-muted">
+            人数
+            <input id="people" class="mt-1 w-full rounded-lg border-line text-sm" type="number" min="1" value="4" />
+          </label>
+          <label class="flex items-center gap-2 rounded-lg bg-fog p-2 text-sm text-muted">
+            <input id="children" type="checkbox" />
+            包含儿童
+          </label>
+          <button id="risk-submit" class="col-span-2 rounded-xl bg-primary py-3 text-sm font-bold text-white shine" type="submit">评估风险</button>
+        </form>
+      </section>
+
+      <section class="relative flex flex-col items-center py-2 text-center">
+        <div class="relative mb-4 h-48 w-48">
+          <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" fill="transparent" stroke="#e1e5e4" stroke-width="8"></circle>
+            <circle id="risk-ring" class="risk-ring" cx="50" cy="50" r="40" fill="transparent" stroke="#5d6469" stroke-linecap="round" stroke-width="8"></circle>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span id="score" class="font-mono text-[64px] font-bold leading-none text-muted">--</span>
+            <span class="text-[11px] font-bold text-muted">风险指数</span>
+          </div>
+        </div>
+        <div id="level-pill" class="inline-flex items-center gap-2 rounded-full bg-fog px-4 py-1 text-muted">
+          <span class="material-symbols-outlined text-sm">radio_button_unchecked</span>
+          <span id="level" class="text-[11px] font-bold">待评估</span>
+        </div>
+        <p id="conclusion" class="mx-auto mt-3 max-w-xs text-xl font-bold leading-snug">输入具体地点，按经纬度计算活动天气风险。</p>
+      </section>
+
+      <section class="grid grid-cols-2 gap-2" id="metrics"></section>
+
+      <section id="insight-card" class="glass-card overflow-hidden rounded-xl">
+        <div id="insight-image" class="weather-photo relative h-52 w-full bg-carbon">
+          <span class="absolute right-3 top-3 z-10 rounded bg-black/55 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white/90 backdrop-blur">AI生成示意图</span>
+          <div class="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/95 via-black/55 to-black/5 p-4">
+            <div class="mb-2 flex items-center gap-2">
+              <span id="insight-dot" class="h-2 w-2 rounded-full bg-cyan"></span>
+              <p id="insight-kicker" class="text-[11px] font-bold text-white">天气洞察</p>
+            </div>
+            <p id="insight-title" class="text-xl font-bold text-white">等待天气评估</p>
+            <p id="insight-body" class="mt-1 text-sm leading-relaxed text-white/86">评估后会根据好天气或风险天气，展示诗句、鼓励语或防灾减灾措施。</p>
+          </div>
+        </div>
+        <div class="flex items-center justify-between bg-white p-4">
+          <span id="insight-source" class="text-[11px] font-bold text-muted">本地知识库 + 风险规则</span>
+          <button id="toggle-insight" class="flex items-center gap-1 text-xs font-bold text-primary" type="button">
+            展开措施 <span class="material-symbols-outlined text-sm">expand_more</span>
+          </button>
+        </div>
+        <div id="insight-details" class="hidden border-t border-line bg-white px-4 pb-4">
+          <ul id="insight-list" class="list-inside list-disc space-y-1 text-sm text-muted"></ul>
+        </div>
+      </section>
+
+      <section id="plan-section" class="space-y-3">
+        <h3 class="px-1 text-xs font-bold text-muted">风险分析</h3>
+        <div id="factors" class="space-y-2"></div>
+      </section>
+
+      <section id="history-section" class="space-y-3">
+        <div class="flex items-end justify-between">
+          <h3 class="px-1 text-xs font-bold text-muted">推荐时段</h3>
+          <span class="material-symbols-outlined text-sm text-muted">swipe_left</span>
+        </div>
+        <div id="best-hours" class="no-scrollbar flex gap-3 overflow-x-auto pb-2"></div>
+      </section>
+
+      <section class="space-y-3">
+        <h3 class="px-1 text-xs font-bold text-muted">通知与决策模板</h3>
+        <div class="rounded-xl border border-dashed border-line bg-white p-4">
+          <div class="mb-3 flex items-start justify-between">
+            <div>
+              <p class="mb-1 text-xs font-bold text-muted">群通知文案</p>
+              <p id="notice" class="text-sm italic leading-relaxed text-muted">完成评估后生成可复制通知。</p>
+            </div>
+            <button id="copy-notice" class="rounded-lg p-2 hover:bg-fog" type="button">
+              <span class="material-symbols-outlined text-lg">content_copy</span>
+            </button>
+          </div>
+          <hr class="border-line" />
+          <div class="mt-3">
+            <p class="mb-2 text-xs font-bold text-muted">取消/改期阈值</p>
+            <ul id="contingency" class="list-inside list-disc space-y-1 text-sm text-muted">
+              <li>完成评估后自动生成。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings-panel" class="hidden rounded-xl border border-line bg-white p-4">
+        <h3 class="text-sm font-bold">功能菜单</h3>
+        <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-target="assess-section" type="button">回到评估</button>
+          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-target="plan-section" type="button">查看推荐时段</button>
+          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-target="history-section" type="button">查看通知模板</button>
+          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-target="qa-toggle" type="button">打开天气AI</button>
+        </div>
+        <p class="mt-3 text-xs leading-relaxed text-muted">当前版本包含活动风险评估、推荐时段、通知模板和气象知识问答。天气数据来自 Open-Meteo，未来日期为预报，过去日期为历史天气回放。</p>
+      </section>
+
+      <footer class="border-t border-line pb-12 pt-6">
+        <button id="qa-toggle" class="flex w-full items-center justify-center gap-3 rounded-full bg-primary px-6 py-3 text-sm font-bold text-white" type="button">
+          <span class="material-symbols-outlined">psychology</span>
+          问天气AI
+        </button>
+        <section id="qa-panel" class="mt-3 hidden space-y-3 rounded-xl border border-line bg-white p-4">
+          <textarea id="qa-question" class="w-full rounded-lg border-line text-sm" rows="3" placeholder="例如：雷暴天气为什么不适合骑行？"></textarea>
+          <button id="qa-submit" class="w-full rounded-xl bg-primary py-3 text-sm font-bold text-white" type="button">检索知识库</button>
+          <pre id="qa-answer" class="whitespace-pre-wrap text-sm leading-relaxed text-muted"></pre>
+        </section>
+        <p class="mt-4 text-center text-[10px] font-bold text-muted">METEORISK 决策引擎 · 地点级天气数据</p>
+      </footer>
+    </main>
+
+    <nav class="fixed bottom-0 z-50 mx-auto flex h-20 w-full max-w-2xl items-center justify-around border-t border-line bg-white px-2 left-0 right-0">
+      <button class="nav-action flex scale-95 flex-col items-center rounded-xl bg-carbon px-3 py-1.5 text-white" data-target="assess-section" type="button"><span class="material-symbols-outlined">analytics</span><span class="text-[10px] font-bold">评估</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-target="plan-section" type="button"><span class="material-symbols-outlined">calendar_today</span><span class="text-[10px] font-bold">计划</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-target="history-section" type="button"><span class="material-symbols-outlined">history</span><span class="text-[10px] font-bold">历史</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-target="settings-panel" type="button"><span class="material-symbols-outlined">settings</span><span class="text-[10px] font-bold">设置</span></button>
+    </nav>
+    <script src="/static/mobile.js"></script>
+  </body>
+</html>

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>户外活动天气风险决策助手</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Outdoor Weather Risk Copilot</p>
+            <h1>户外活动天气风险决策助手</h1>
+          </div>
+          <div class="status" id="status">
+            <span class="status-dot"></span>
+            <span>连接中</span>
+          </div>
+        </header>
+
+        <section class="query-panel">
+          <div class="panel-heading">
+            <h2>活动计划</h2>
+            <span class="badge">真实小时级预报</span>
+          </div>
+          <form id="risk-form" class="risk-form">
+            <label>
+              城市
+              <input id="risk-city" name="city" value="广州" />
+            </label>
+            <label>
+              活动类型
+              <select id="risk-activity" name="activity_type">
+                <option value="cycling">骑行</option>
+                <option value="running">跑步</option>
+                <option value="camping">露营</option>
+                <option value="hiking">徒步/登山</option>
+                <option value="outdoor_event">户外活动运营</option>
+                <option value="parent_child">亲子出行</option>
+              </select>
+            </label>
+            <label>
+              日期
+              <input id="risk-date" name="date" type="date" />
+            </label>
+            <label>
+              开始时间
+              <input id="risk-time" name="start_time" type="time" value="18:00" />
+            </label>
+            <label>
+              时长
+              <input id="risk-duration" name="duration_hours" type="number" min="1" max="12" step="1" value="2" />
+            </label>
+            <label>
+              人数
+              <input id="risk-people" name="people" type="number" min="1" value="4" />
+            </label>
+            <label class="checkbox-label">
+              <input id="risk-children" name="children" type="checkbox" />
+              包含儿童
+            </label>
+            <button type="submit" id="risk-button">评估风险</button>
+          </form>
+        </section>
+
+        <section class="decision-grid">
+          <article class="score-panel">
+            <div class="score-ring" id="score-ring">
+              <strong id="risk-score">--</strong>
+              <span id="risk-level">待评估</span>
+            </div>
+            <div>
+              <h2>风控结论</h2>
+              <p id="risk-conclusion">输入活动计划后，系统会基于真实小时级天气预报生成可行性评分、风险因素和备用方案。</p>
+            </div>
+          </article>
+
+          <article class="weather-panel">
+            <div class="panel-heading">
+              <h2>活动时段天气</h2>
+              <span id="risk-source" class="badge">未查询</span>
+            </div>
+            <div class="metrics" id="risk-metrics"></div>
+          </article>
+        </section>
+
+        <section class="answer-grid">
+          <article class="answer-panel">
+            <div class="panel-heading">
+              <h2>风险因素</h2>
+              <span id="factor-count" class="badge">0 项</span>
+            </div>
+            <div class="risk-list" id="risk-factors"></div>
+          </article>
+
+          <aside class="weather-panel">
+            <div class="panel-heading">
+              <h2>建议时段</h2>
+              <span class="badge">同日 Top 3</span>
+            </div>
+            <div class="risk-list" id="best-hours"></div>
+          </aside>
+        </section>
+
+        <section class="sources-panel">
+          <div class="panel-heading">
+            <h2>预案与通知</h2>
+            <span class="badge">可直接复用</span>
+          </div>
+          <div class="plan-output">
+            <div>
+              <h3>备用方案</h3>
+              <ul id="contingency-list"></ul>
+            </div>
+            <div>
+              <h3>通知文案</h3>
+              <p id="notification-text">完成评估后自动生成。</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="query-panel">
+          <div class="panel-heading">
+            <h2>气象知识问答</h2>
+            <span id="intent-badge" class="badge">RAG 辅助</span>
+          </div>
+          <form id="ask-form" class="ask-form">
+            <label for="question">问题</label>
+            <div class="input-row">
+              <textarea id="question" rows="3" placeholder="例如：厄尔尼诺是什么？副热带高压为什么会影响高温？"></textarea>
+              <button type="submit" id="ask-button">询问</button>
+            </div>
+          </form>
+          <div class="quick-questions" id="quick-questions"></div>
+          <pre id="answer" class="answer-text compact-answer">术语解释类问题只走知识库；具体国内城市活动决策请使用上方风控表单。</pre>
+        </section>
+
+        <section class="sources-panel">
+          <div class="panel-heading">
+            <h2>RAG 来源</h2>
+            <span id="source-count" class="badge">0 条</span>
+          </div>
+          <div class="sources" id="sources"></div>
+        </section>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
