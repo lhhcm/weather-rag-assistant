@@ -54,6 +54,50 @@ pyinstaller --onefile --windowed --name "户外活动天气风险决策助手" -
 dist/户外活动天气风险决策助手.exe
 ```
 
+## 手机端 App 打包
+
+项目已提供 Capacitor Android App 壳和自定义图标。App 启动后会先让你填写天气服务地址，再进入同一套手机端页面。
+
+安装依赖并生成 Android 工程：
+
+```powershell
+npm install
+npm run mobile:sync
+```
+
+如果本机已安装 Android Studio / Android SDK，可继续构建调试 APK：
+
+```powershell
+npm run mobile:build
+```
+
+APK 输出位置：
+
+```text
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+如果本机没有 Java 或 Android SDK，也可以推送到 GitHub 后在 Actions 页面运行 `Build Android Debug APK`，构建完成后下载 artifact：`outdoor-weather-risk-assistant-debug-apk`。
+
+真机使用时，需要让电脑服务监听局域网地址，并把 App 里的服务地址填成电脑 IP：
+
+```powershell
+$env:WEATHER_SERVER_HOST="0.0.0.0"
+python -m src.weather_rag.server
+```
+
+然后在手机 App 中填写类似：
+
+```text
+http://192.168.1.20:8765
+```
+
+Android 模拟器可直接使用默认地址：
+
+```text
+http://10.0.2.2:8765
+```
+
 页面状态接口会返回 `orchestrator=langgraph` 和 `answer_backend`。如果配置了大模型 API Key，`answer_backend=langchain-llm`；如果没有 Key，则为 `langchain-local-rag`，表示使用 LangChain 组织上下文，但答案由本地 RAG 兜底生成。
 
 ## 可选：接入大模型 API

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d1113" />
+    <title>户外活动天气风险决策助手</title>
+    <link rel="icon" href="assets/icon.svg" />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Microsoft YaHei", system-ui, sans-serif;
+        background: #f7f8f7;
+        color: #151719;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 22px;
+        background:
+          radial-gradient(circle at 25% 12%, rgba(22, 163, 184, .22), transparent 32%),
+          linear-gradient(160deg, #f7f8f7 0%, #eef2f1 52%, #dfe8e6 100%);
+      }
+      main {
+        width: min(100%, 430px);
+        border-radius: 22px;
+        padding: 26px;
+        background: rgba(255, 255, 255, .86);
+        border: 1px solid rgba(255, 255, 255, .75);
+        box-shadow: 0 24px 70px rgba(20, 30, 36, .18);
+        backdrop-filter: blur(18px);
+      }
+      .brand {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      .brand img {
+        width: 62px;
+        height: 62px;
+        border-radius: 18px;
+        box-shadow: 0 14px 32px rgba(13, 17, 19, .24);
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.2;
+      }
+      p {
+        margin: 8px 0 0;
+        color: #5d6469;
+        line-height: 1.55;
+        font-size: 14px;
+      }
+      label {
+        display: block;
+        margin: 22px 0 8px;
+        font-weight: 800;
+        font-size: 14px;
+      }
+      input {
+        width: 100%;
+        border: 1px solid #d4dad8;
+        border-radius: 12px;
+        padding: 13px 14px;
+        font-size: 15px;
+        outline: none;
+        background: #fff;
+      }
+      input:focus {
+        border-color: #16a3b8;
+        box-shadow: 0 0 0 4px rgba(22, 163, 184, .13);
+      }
+      .actions {
+        display: grid;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      button {
+        min-height: 48px;
+        border: 0;
+        border-radius: 999px;
+        font-weight: 900;
+        font-size: 15px;
+        color: #fff;
+        background: #0d1113;
+      }
+      .ghost {
+        color: #151719;
+        background: #eef2f1;
+      }
+      .hint {
+        margin-top: 18px;
+        padding: 12px;
+        border-radius: 14px;
+        background: #f1f6f5;
+        font-size: 13px;
+        color: #526066;
+      }
+      .status {
+        min-height: 20px;
+        margin-top: 12px;
+        color: #0f766e;
+        font-size: 13px;
+        font-weight: 800;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">
+        <img src="assets/icon.svg" alt="" />
+        <div>
+          <h1>户外活动天气风险决策助手</h1>
+          <p>连接你的天气服务，进入手机端决策页面。</p>
+        </div>
+      </div>
+
+      <label for="server-url">服务地址</label>
+      <input id="server-url" inputmode="url" autocomplete="url" />
+
+      <div class="actions">
+        <button id="open-app" type="button">进入助手</button>
+        <button id="use-emulator" class="ghost" type="button">使用 Android 模拟器地址</button>
+      </div>
+
+      <div id="status" class="status" aria-live="polite"></div>
+      <div class="hint">
+        真机使用时，先让电脑服务监听局域网地址，再把这里改成电脑 IP，例如
+        http://192.168.1.20:8765。
+      </div>
+    </main>
+    <script src="app-shell.js"></script>
+  </body>
+</html>

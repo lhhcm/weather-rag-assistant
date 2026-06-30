@@ -1,0 +1,14 @@
+{
+  "appId": "com.weather.riskassistant",
+  "appName": "户外活动天气风险决策助手",
+  "webDir": "mobile-app-shell",
+  "server": {
+    "cleartext": true,
+    "allowNavigation": [
+      "*"
+    ]
+  },
+  "android": {
+    "backgroundColor": "#0d1113"
+  }
+}

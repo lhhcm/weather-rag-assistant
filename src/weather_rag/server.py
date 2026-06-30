@@ -27,6 +27,13 @@ assistant = GraphWeatherRagAssistant()
 class WeatherRagHandler(BaseHTTPRequestHandler):
     server_version = "WeatherRAG/1.0"
 
+    def do_OPTIONS(self) -> None:
+        self.send_response(204)
+        self.send_cors_headers()
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def do_GET(self) -> None:
         if self.path == "/api/health":
             self.write_json(health_payload(assistant))
@@ -72,11 +79,14 @@ class WeatherRagHandler(BaseHTTPRequestHandler):
             return
 
         content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+        if file_path.suffix == ".webmanifest":
+            content_type = "application/manifest+json"
         if content_type.startswith("text/") or content_type in {"application/javascript", "application/json"}:
             content_type = f"{content_type}; charset=utf-8"
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Cache-Control", "no-store")
+        self.send_cors_headers()
         self.end_headers()
         self.wfile.write(file_path.read_bytes())
 
@@ -86,8 +96,13 @@ class WeatherRagHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
+        self.send_cors_headers()
         self.end_headers()
         self.wfile.write(data)
+
+    def send_cors_headers(self) -> None:
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Max-Age", "86400")
 
     def log_message(self, format: str, *args: Any) -> None:
         if sys.stderr:
@@ -118,4 +133,6 @@ def start_desktop_shutdown_monitor(httpd: ThreadingHTTPServer) -> None:
 
 
 if __name__ == "__main__":
-    run()
+    env_host = os.getenv("WEATHER_SERVER_HOST", HOST)
+    env_port = int(os.getenv("WEATHER_SERVER_PORT", str(PORT)))
+    run(env_host, env_port)

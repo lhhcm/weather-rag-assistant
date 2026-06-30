@@ -5,6 +5,7 @@ __pycache__/
 
 .env
 *.log
+node_modules/
 
 .DS_Store
 Thumbs.db
@@ -12,3 +13,6 @@ Thumbs.db
 build/
 dist/
 *.spec
+android/.gradle/
+android/app/build/
+android/build/
