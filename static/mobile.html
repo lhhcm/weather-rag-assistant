@@ -11,7 +11,6 @@
     <link href="https://fonts.googleapis.com" rel="preconnect" />
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
       tailwind.config = {
@@ -45,7 +44,6 @@
     </script>
     <style>
       body { min-height: max(884px, 100dvh); background: #f7f8f7; color: #151719; font-family: "Hanken Grotesk", "Microsoft YaHei", sans-serif; -webkit-font-smoothing: antialiased; }
-      .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 420, "GRAD" 0, "opsz" 24; }
       .glass-card { background: rgba(255,255,255,.78); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.55); box-shadow: 0 18px 50px rgba(20,30,36,.10); }
       .carbon-card { background: linear-gradient(145deg, #171c1f, #2a3033); color: white; box-shadow: 0 22px 60px rgba(12,17,19,.22); }
       .risk-ring { stroke-dasharray: 251.2; stroke-dashoffset: var(--ring-offset, 251.2); transition: stroke-dashoffset .9s ease, stroke .3s ease; }
@@ -78,13 +76,13 @@
     <header class="fixed top-0 z-50 mx-auto flex h-16 w-full max-w-2xl items-center justify-between border-b border-line bg-white/85 px-4 backdrop-blur-md left-0 right-0">
       <div class="flex items-center gap-2">
         <button id="menu-toggle" class="rounded-lg p-1 active:bg-fog" type="button" aria-label="打开工具箱" title="打开工具箱">
-          <span class="material-symbols-outlined text-primary">menu</span>
+          <span class="text-lg font-black text-primary">三</span>
         </button>
         <h1 class="text-lg font-bold tracking-tight">户外活动天气风险决策助手</h1>
       </div>
       <div class="flex flex-col items-end">
         <div class="flex items-center gap-1">
-          <span class="material-symbols-outlined text-sm">location_on</span>
+          <span class="text-[10px] font-bold">地点</span>
           <span id="top-location" class="font-mono text-[10px] uppercase">广州天河体育中心</span>
         </div>
         <div class="flex items-center gap-1 text-success">
@@ -100,6 +98,7 @@
           <button class="module-action rounded-full bg-primary px-4 py-2 text-sm font-bold text-white" data-view="decision" type="button">评估</button>
           <button class="module-action rounded-full bg-white px-4 py-2 text-sm font-bold text-muted" data-view="compare" type="button">对比</button>
           <button class="module-action rounded-full bg-white px-4 py-2 text-sm font-bold text-muted" data-view="calendar" type="button">日历</button>
+          <button class="module-action rounded-full bg-white px-4 py-2 text-sm font-bold text-muted" data-view="plans" type="button">计划</button>
           <button class="module-action rounded-full bg-white px-4 py-2 text-sm font-bold text-muted" data-view="tools" type="button">工具</button>
           <button class="module-action rounded-full bg-white px-4 py-2 text-sm font-bold text-muted" data-view="feedback" type="button">反馈</button>
         </div>
@@ -108,30 +107,29 @@
       <section id="login-section" class="glass-card rounded-xl p-4">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <p class="text-[11px] font-bold text-muted">免注册便携登录</p>
-            <h2 class="text-xl font-bold leading-tight">用通行码同步你的计划</h2>
-            <p id="sync-status" class="mt-1 text-xs leading-relaxed text-muted">输入同一个通行码，手机和电脑会进入同一个用户空间。</p>
+            <p class="text-[11px] font-bold text-muted">免密码便携登录</p>
+            <h2 class="text-xl font-bold leading-tight">用用户名同步你的计划</h2>
+            <p id="sync-status" class="mt-1 text-xs leading-relaxed text-muted">输入自定义用户名，后端会自动生成并绑定通行证。</p>
           </div>
           <span id="user-chip" class="rounded-full bg-fog px-3 py-1 text-xs font-bold text-muted">未登录</span>
         </div>
         <div class="mt-3 grid grid-cols-[1fr_auto] gap-2">
-          <input id="user-code" class="rounded-lg border-line text-sm" placeholder="输入或生成通行码" autocomplete="off" />
-          <button id="login-user" class="rounded-lg bg-primary px-4 text-sm font-bold text-white" type="button">登录</button>
+          <input id="username-input" class="rounded-lg border-line text-sm" placeholder="输入用户名，如 xiaoming" autocomplete="username" />
+          <button id="register-user" class="rounded-lg bg-primary px-4 text-sm font-bold text-white" type="button">注册/进入</button>
         </div>
         <div class="mt-2 grid grid-cols-2 gap-2">
-          <button id="generate-user-code" class="rounded-lg border border-line bg-white py-2 text-sm font-bold" type="button">生成通行码</button>
+          <button id="copy-passport" class="rounded-lg border border-line bg-white py-2 text-sm font-bold" type="button">复制通行证</button>
           <button id="logout-user" class="rounded-lg border border-line bg-white py-2 text-sm font-bold text-muted" type="button">退出本机</button>
         </div>
-        <p class="mt-2 text-[11px] leading-relaxed text-muted">通行码只在你的设备上显示；服务端用哈希 ID 区分用户。请自己保存，丢失后无法找回。</p>
+        <p id="passport-hint" class="mt-2 text-[11px] leading-relaxed text-muted">登录后会自动缓存到浏览器，下次打开自动进入。通行证由后端生成，不需要你手动设置密码。</p>
       </section>
 
       <section id="assess-section" class="glass-card rounded-xl p-4">
-        <div class="mb-3 flex items-end justify-between">
+        <div class="mb-3">
           <div>
             <p class="text-[11px] font-bold text-muted">地点级真实天气决策</p>
             <h2 class="text-2xl font-bold leading-tight">地点级户外风控</h2>
           </div>
-          <button id="fill-demo" class="rounded-full bg-fog px-3 py-1.5 text-xs font-bold" type="button">示例</button>
         </div>
         <form id="risk-form" class="grid grid-cols-2 gap-2">
           <label class="col-span-2 text-xs font-bold text-muted">
@@ -140,7 +138,7 @@
           </label>
           <div class="col-span-2">
             <button id="use-current-location" class="flex w-full items-center justify-center gap-1 rounded-lg border border-line bg-white py-2 text-sm font-bold" type="button">
-              <span class="material-symbols-outlined text-base">my_location</span>
+              定位
               使用当前位置
             </button>
           </div>
@@ -189,7 +187,6 @@
           </div>
           <div id="query-history-list" class="space-y-2"></div>
           <button id="clear-query-history" class="mt-3 flex w-full items-center justify-center gap-1 rounded-lg border border-line bg-white py-2 text-sm font-bold text-muted" type="button">
-            <span class="material-symbols-outlined text-base">delete</span>
             清空全部历史
           </button>
         </div>
@@ -207,7 +204,7 @@
           </div>
         </div>
         <div id="level-pill" class="inline-flex items-center gap-2 rounded-full bg-fog px-4 py-1 text-muted">
-          <span class="material-symbols-outlined text-sm">radio_button_unchecked</span>
+          <span class="text-sm">○</span>
           <span id="level" class="text-[11px] font-bold">待评估</span>
         </div>
         <p id="conclusion" class="mx-auto mt-3 max-w-xs text-xl font-bold leading-snug">输入具体地点，按经纬度计算活动天气风险。</p>
@@ -243,7 +240,7 @@
       <section id="history-section" class="space-y-3">
         <div class="flex items-end justify-between">
           <h3 class="px-1 text-xs font-bold text-muted">推荐时段</h3>
-          <span class="material-symbols-outlined text-sm text-muted">swipe_left</span>
+          <span class="text-sm text-muted">滑动</span>
         </div>
         <div id="best-hours" class="no-scrollbar flex gap-3 overflow-x-auto pb-2"></div>
       </section>
@@ -257,7 +254,7 @@
               <p id="notice" class="text-sm italic leading-relaxed text-muted">完成评估后生成可复制通知。</p>
             </div>
             <button id="copy-notice" class="rounded-lg p-2 hover:bg-fog" type="button">
-              <span class="material-symbols-outlined text-lg">content_copy</span>
+              复制
             </button>
           </div>
           <hr class="border-line" />
@@ -269,8 +266,7 @@
           </div>
         </div>
         <button id="add-plan" class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white" type="button">
-          <span class="material-symbols-outlined text-lg">event_available</span>
-          添加到计划表并监控预报
+            添加到计划表并监控预报
         </button>
       </section>
 
@@ -282,7 +278,7 @@
 广州海珠湖
 广州白云山</textarea>
           <button id="compare-run" class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white" type="button">
-            <span class="material-symbols-outlined text-lg">compare_arrows</span>
+            <span class="text-sm font-bold text-muted">路线</span>
             生成路线风险图
           </button>
         </div>
@@ -313,7 +309,7 @@
         <div class="feature-card">
           <div class="mb-3 flex items-center justify-between">
             <h4>场景模板</h4>
-            <span class="material-symbols-outlined text-muted">category</span>
+            <span class="text-xs font-bold text-muted">模板</span>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <button class="scenario-action pill-button" data-activity="cycling" data-time="18:00" data-duration="2" type="button">骑行助手</button>
@@ -326,7 +322,7 @@
         <div class="feature-card">
           <div class="mb-3 flex items-center justify-between">
             <h4>地图点选 / 坐标</h4>
-            <span class="material-symbols-outlined text-muted">map</span>
+            <span class="text-xs font-bold text-muted">坐标</span>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <button class="map-point pill-button" data-location="23.1402,113.3270" type="button">天河体育中心</button>
@@ -355,7 +351,7 @@
         <div class="feature-card">
           <div class="mb-3 flex items-center justify-between">
             <h4>人群适配决策</h4>
-            <span class="material-symbols-outlined text-muted">groups</span>
+            <span class="text-xs font-bold text-muted">人群</span>
           </div>
           <div id="crowd-adaptation" class="grid grid-cols-1 gap-2"></div>
         </div>
@@ -363,7 +359,7 @@
         <div class="feature-card">
           <div class="mb-3 flex items-center justify-between">
             <h4>风险解释卡片</h4>
-            <span class="material-symbols-outlined text-muted">info</span>
+            <span class="text-xs font-bold text-muted">解释</span>
           </div>
           <div id="explain-cards" class="grid grid-cols-1 gap-2"></div>
         </div>
@@ -379,7 +375,7 @@
         <div class="feature-card">
           <div class="mb-3 flex items-center justify-between">
             <h4>活动组织者模式</h4>
-            <span class="material-symbols-outlined text-muted">campaign</span>
+            <span class="text-xs font-bold text-muted">通知</span>
           </div>
           <div id="organizer-plan" class="space-y-2 text-sm leading-relaxed text-muted"></div>
         </div>
@@ -394,17 +390,22 @@
           <div id="subscription-list" class="mt-3 space-y-2"></div>
         </div>
 
-        <div class="feature-card">
-          <div class="mb-3 flex items-center justify-between gap-3">
+      </section>
+
+      <section id="plans-section" class="view-panel hidden space-y-4">
+        <div class="glass-card rounded-xl p-4">
+          <div class="flex items-start justify-between gap-3">
             <div>
-              <h4>计划表 / 预报监控</h4>
-              <p id="plan-monitor-status" class="mt-1 text-xs text-muted">添加活动后自动复查天气变化。</p>
+              <p class="text-[11px] font-bold text-muted">活动计划表</p>
+              <h2 class="mt-1 text-2xl font-bold">预报监控</h2>
+              <p id="plan-monitor-status" class="mt-2 text-sm leading-relaxed text-muted">添加活动后自动复查天气变化。</p>
             </div>
-            <button id="check-plans-now" class="rounded-lg bg-fog px-3 py-1 text-xs font-bold" type="button">立即复查</button>
+            <button id="check-plans-now" class="rounded-lg bg-fog px-3 py-2 text-xs font-bold" type="button">立即复查</button>
           </div>
-          <div id="plan-alerts" class="space-y-2"></div>
-          <div id="activity-plan-list" class="mt-3 space-y-2"></div>
         </div>
+        <div id="plan-alerts" class="space-y-2"></div>
+        <div id="activity-plan-list" class="space-y-2"></div>
+        <button id="plans-add-current" class="w-full rounded-xl bg-primary py-3 text-sm font-bold text-white" type="button">把当前评估加入计划表</button>
       </section>
 
       <section id="feedback-section" class="view-panel hidden space-y-4">
@@ -435,6 +436,7 @@
         <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
           <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-view="decision" type="button">回到评估</button>
           <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-view="compare" type="button">多地点对比</button>
+          <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-view="plans" type="button">计划表</button>
           <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-view="tools" type="button">行动工具箱</button>
           <button class="menu-action rounded-lg bg-fog p-3 text-left font-bold" data-target="qa-toggle" type="button">打开天气AI</button>
         </div>
@@ -443,7 +445,6 @@
 
       <footer class="border-t border-line pb-12 pt-6">
         <button id="qa-toggle" class="flex w-full items-center justify-center gap-3 rounded-full bg-primary px-6 py-3 text-sm font-bold text-white" type="button">
-          <span class="material-symbols-outlined">psychology</span>
           问天气AI
         </button>
         <section id="qa-panel" class="mt-3 hidden space-y-3 rounded-xl border border-line bg-white p-4">
@@ -461,11 +462,12 @@
     </main>
 
     <nav class="fixed bottom-0 z-50 mx-auto flex h-20 w-full max-w-2xl items-center justify-around border-t border-line bg-white px-2 left-0 right-0">
-      <button class="nav-action flex scale-95 flex-col items-center rounded-xl bg-carbon px-3 py-1.5 text-white" data-view="decision" type="button"><span class="material-symbols-outlined">analytics</span><span class="text-[10px] font-bold">评估</span></button>
-      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-view="compare" type="button"><span class="material-symbols-outlined">compare_arrows</span><span class="text-[10px] font-bold">对比</span></button>
-      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-view="calendar" type="button"><span class="material-symbols-outlined">calendar_today</span><span class="text-[10px] font-bold">日历</span></button>
-      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-view="tools" type="button"><span class="material-symbols-outlined">home_repair_service</span><span class="text-[10px] font-bold">工具</span></button>
-      <button class="nav-action flex scale-95 flex-col items-center px-3 py-1.5 text-muted" data-view="feedback" type="button"><span class="material-symbols-outlined">tune</span><span class="text-[10px] font-bold">反馈</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center rounded-xl bg-carbon px-3 py-2 text-white" data-view="decision" type="button"><span class="text-[11px] font-bold">评估</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-2 text-muted" data-view="compare" type="button"><span class="text-[11px] font-bold">对比</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-2 text-muted" data-view="calendar" type="button"><span class="text-[11px] font-bold">日历</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-2 text-muted" data-view="plans" type="button"><span class="text-[11px] font-bold">计划</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-2 text-muted" data-view="tools" type="button"><span class="text-[11px] font-bold">工具</span></button>
+      <button class="nav-action flex scale-95 flex-col items-center px-3 py-2 text-muted" data-view="feedback" type="button"><span class="text-[11px] font-bold">反馈</span></button>
     </nav>
     <script>
       if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {

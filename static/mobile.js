@@ -11,13 +11,13 @@ const decisionSections = [
 ];
 
 const images = {
-  clear: "linear-gradient(135deg, rgba(56,189,248,.82), rgba(250,204,21,.76)), radial-gradient(circle at 30% 22%, rgba(255,255,255,.75), transparent 24%), linear-gradient(160deg, #a7f3d0, #fef3c7)",
-  cloudy: "linear-gradient(135deg, rgba(148,163,184,.72), rgba(34,197,94,.48)), radial-gradient(circle at 38% 30%, rgba(255,255,255,.7), transparent 28%), linear-gradient(160deg, #dbeafe, #f8fafc)",
-  rain: "linear-gradient(135deg, rgba(14,165,233,.72), rgba(15,23,42,.72)), repeating-linear-gradient(115deg, rgba(255,255,255,.32) 0 2px, transparent 2px 16px), linear-gradient(160deg, #0f172a, #1e3a8a)",
-  thunder: "linear-gradient(135deg, rgba(250,204,21,.86), rgba(15,23,42,.8)), linear-gradient(118deg, transparent 0 45%, rgba(255,255,255,.9) 45% 52%, transparent 52% 100%), linear-gradient(160deg, #111827, #312e81)",
-  wind: "linear-gradient(135deg, rgba(20,184,166,.62), rgba(15,23,42,.72)), repeating-linear-gradient(170deg, rgba(255,255,255,.42) 0 3px, transparent 3px 22px), linear-gradient(160deg, #134e4a, #0f172a)",
-  heat: "linear-gradient(135deg, rgba(239,68,68,.78), rgba(250,204,21,.68)), radial-gradient(circle at 72% 22%, rgba(255,255,255,.68), transparent 18%), linear-gradient(160deg, #f97316, #991b1b)",
-  fog: "linear-gradient(135deg, rgba(226,232,240,.78), rgba(148,163,184,.64)), repeating-linear-gradient(0deg, rgba(255,255,255,.42) 0 8px, transparent 8px 22px), linear-gradient(160deg, #cbd5e1, #64748b)"
+  clear: "/static/assets/weather/clear-cn.png",
+  cloudy: "/static/assets/weather/cloudy-cn.png",
+  rain: "/static/assets/weather/rain-cn.png",
+  thunder: "/static/assets/weather/thunder-cn.png",
+  wind: "/static/assets/weather/wind-cn.png",
+  heat: "/static/assets/weather/heat-cn.png",
+  fog: "/static/assets/weather/fog-cn.png"
 };
 
 const STORAGE_KEYS = {
@@ -78,40 +78,20 @@ function setSyncStatus(text) {
 
 function renderUserIdentity() {
   const chip = $("#user-chip");
-  const input = $("#user-code");
+  const input = $("#username-input");
   if (!chip || !input) return;
   if (userIdentity?.userId) {
-    chip.textContent = `已登录 ${userIdentity.userId.slice(0, 6)}`;
+    chip.textContent = `已登录 ${userIdentity.username || userIdentity.userId.slice(0, 6)}`;
     chip.className = "rounded-full bg-success/10 px-3 py-1 text-xs font-bold text-success";
-    input.value = userIdentity.code || "";
-    setSyncStatus("已启用云端用户空间。换设备输入同一个通行码即可同步计划和历史。");
+    input.value = userIdentity.username || "";
+    setSyncStatus("已自动进入云端用户空间，计划和历史会按用户名同步。");
+    $("#passport-hint").textContent = userIdentity.passport ? `通行证已绑定并缓存到浏览器：${userIdentity.passport}` : "通行证已绑定并缓存到浏览器。";
   } else {
     chip.textContent = "未登录";
     chip.className = "rounded-full bg-fog px-3 py-1 text-xs font-bold text-muted";
-    setSyncStatus("输入同一个通行码，手机和电脑会进入同一个用户空间。");
+    setSyncStatus("输入自定义用户名，点击注册/进入后自动生成通行证。");
+    $("#passport-hint").textContent = "登录后会自动缓存到浏览器，下次打开自动进入。通行证由后端生成，不需要你手动设置密码。";
   }
-}
-
-function randomUserCode() {
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(36).padStart(2, "0")).join("").slice(0, 16).toUpperCase();
-}
-
-async function digestUserCode(code) {
-  const normalized = code.trim().toLowerCase().replace(/\s+/g, "-");
-  if (!normalized) return "";
-  if (crypto.subtle) {
-    const bytes = new TextEncoder().encode(`weather-risk-user:${normalized}`);
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  }
-  let hash = 2166136261;
-  for (const char of normalized) {
-    hash ^= char.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
-  }
-  return Math.abs(hash).toString(16).padStart(16, "0");
 }
 
 function exportUserState() {
@@ -204,16 +184,26 @@ function persistUserData() {
   saveCloudUserState(false);
 }
 
-async function loginWithUserCode() {
-  const code = $("#user-code").value.trim();
-  if (code.length < 6) {
-    setSyncStatus("通行码至少 6 位，建议使用生成按钮。");
+async function registerUsername() {
+  const username = $("#username-input").value.trim();
+  if (username.length < 2) {
+    setSyncStatus("用户名至少 2 位，可用中文、字母、数字、下划线或短横线。");
     return;
   }
-  setSyncStatus("正在进入云端用户空间...");
-  const userId = await digestUserCode(code);
-  userIdentity.userId = userId;
-  userIdentity.code = code;
+  setSyncStatus("正在注册并生成通行证...");
+  const response = await fetch("/api/register-user", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username })
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) {
+    setSyncStatus(data.error || "注册失败，请换一个用户名。");
+    return;
+  }
+  userIdentity.userId = data.user_id;
+  userIdentity.username = data.username;
+  userIdentity.passport = data.passport;
   localStorage.setItem("meteorisk_user_identity", JSON.stringify(userIdentity));
   applyUserState({
     feedback: readStoredArray(STORAGE_KEYS.feedback),
@@ -233,7 +223,8 @@ async function loginWithUserCode() {
 function logoutUser() {
   localStorage.removeItem("meteorisk_user_identity");
   userIdentity.userId = "";
-  userIdentity.code = "";
+  userIdentity.username = "";
+  userIdentity.passport = "";
   applyUserState({
     feedback: readStoredArray(STORAGE_KEYS.feedback),
     subscriptions: readStoredArray(STORAGE_KEYS.subscriptions),
@@ -242,6 +233,15 @@ function logoutUser() {
   });
   renderUserIdentity();
   renderUserDataViews();
+}
+
+async function copyPassport() {
+  if (!userIdentity?.passport) {
+    setSyncStatus("请先输入用户名并注册/进入。");
+    return;
+  }
+  await navigator.clipboard.writeText(userIdentity.passport);
+  setSyncStatus("通行证已复制。它已自动绑定用户名，通常不需要手动输入。");
 }
 
 function startDesktopHeartbeat() {
@@ -415,7 +415,7 @@ function renderQueryHistory() {
           <div class="flex shrink-0 items-center gap-2">
             <span class="rounded-full px-2 py-1 text-xs font-bold ${meta.bg}">${escapeHtml(item.level)} · ${escapeHtml(item.score)}</span>
             <button class="delete-query-history rounded bg-fog p-1 text-muted" data-index="${index}" type="button" aria-label="删除这条历史" title="删除这条历史">
-              <span class="material-symbols-outlined text-base">close</span>
+              <span class="text-base font-black">×</span>
             </button>
           </div>
         </div>
@@ -496,17 +496,17 @@ function renderMetrics(window) {
     ? ["降水概率", fmt(window?.max_precip_probability, "%")]
     : ["实测降水", fmt(window?.max_precipitation, " mm")];
   const rows = [
-    [...precipMetric, "rainy", "text-danger"],
-    ["体感温度", fmt(window?.max_apparent_temperature, "°C"), "thermostat", "text-warning"],
-    ["风速/阵风", fmt(window?.max_wind_or_gust, " km/h"), "air", "text-muted"],
-    ["紫外线指数", fmt(window?.max_uv_index), "wb_sunny", "text-warning"]
+    [...precipMetric, "雨", "text-danger"],
+    ["体感温度", fmt(window?.max_apparent_temperature, "°C"), "温", "text-warning"],
+    ["风速/阵风", fmt(window?.max_wind_or_gust, " km/h"), "风", "text-muted"],
+    ["紫外线指数", fmt(window?.max_uv_index), "晒", "text-warning"]
   ];
-  $("#metrics").innerHTML = rows.map(([label, value, icon, cls]) => `
+  $("#metrics").innerHTML = rows.map(([label, value, mark, cls]) => `
     <div class="rounded-lg border border-line bg-white p-4">
       <span class="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">${label}</span>
       <div class="mt-2 flex items-end justify-between">
         <span class="font-mono text-2xl font-bold ${cls}">${value}</span>
-        <span class="material-symbols-outlined ${cls}">${icon}</span>
+        <span class="rounded bg-fog px-2 py-1 text-xs font-black ${cls}">${mark}</span>
       </div>
     </div>
   `).join("");
@@ -840,7 +840,7 @@ function buildPlanAlert(plan, data) {
 function addCurrentPlan() {
   if (!state.lastPlan) {
     $("#plan-monitor-status").textContent = "请先完成一次活动天气评估，再添加到计划表。";
-    activateView("tools");
+    activateView("plans");
     return;
   }
   const data = state.lastPlan;
@@ -877,7 +877,7 @@ function addCurrentPlan() {
   requestNotificationPermission();
   renderActivityPlans();
   $("#plan-monitor-status").textContent = "已加入计划表，页面打开期间会自动复查天气预报。";
-  activateView("tools");
+  activateView("plans");
 }
 
 function renderPlanAlerts() {
@@ -1217,14 +1217,11 @@ function init() {
     node.addEventListener("change", renderQaQuickQuestions);
   });
   $("#use-current-location").addEventListener("click", requestCurrentLocation);
-  $("#generate-user-code").addEventListener("click", () => {
-    $("#user-code").value = randomUserCode();
-    setSyncStatus("已生成通行码。请保存它，然后点击登录。");
+  $("#register-user").addEventListener("click", registerUsername);
+  $("#username-input").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") registerUsername();
   });
-  $("#login-user").addEventListener("click", loginWithUserCode);
-  $("#user-code").addEventListener("keydown", (event) => {
-    if (event.key === "Enter") loginWithUserCode();
-  });
+  $("#copy-passport").addEventListener("click", copyPassport);
   $("#logout-user").addEventListener("click", logoutUser);
   $("#clear-query-history").addEventListener("click", () => {
     state.queryHistory = [];
@@ -1243,16 +1240,6 @@ function init() {
     if (!restoreButton) return;
     restoreQueryHistory(Number(restoreButton.dataset.index));
   });
-  $("#fill-demo").addEventListener("click", () => {
-    $("#location").value = "广州天河体育中心";
-    $("#activity").value = "cycling";
-    $("#time").value = "18:00";
-    $("#duration").value = "2";
-    $("#people").value = "4";
-    $("#children").checked = false;
-    $("#elderly").checked = false;
-    renderQaQuickQuestions();
-  });
   $("#qa-toggle").addEventListener("click", () => {
     renderQaQuickQuestions();
     $("#qa-panel").classList.toggle("hidden");
@@ -1265,6 +1252,7 @@ function init() {
   });
   $("#qa-submit").addEventListener("click", askKnowledge);
   $("#add-plan").addEventListener("click", addCurrentPlan);
+  $("#plans-add-current").addEventListener("click", addCurrentPlan);
   $("#check-plans-now").addEventListener("click", () => checkActivityPlans(true));
   $("#activity-plan-list").addEventListener("click", async (event) => {
     const checkButton = event.target.closest(".check-plan");
@@ -1291,9 +1279,9 @@ function init() {
   });
   $("#copy-notice").addEventListener("click", async () => {
     await navigator.clipboard.writeText($("#notice").textContent);
-    $("#copy-notice").innerHTML = '<span class="material-symbols-outlined text-lg">done</span>';
+    $("#copy-notice").textContent = "已复制";
     setTimeout(() => {
-      $("#copy-notice").innerHTML = '<span class="material-symbols-outlined text-lg">content_copy</span>';
+      $("#copy-notice").textContent = "复制";
     }, 1500);
   });
   $("#copy-emergency").addEventListener("click", async () => {

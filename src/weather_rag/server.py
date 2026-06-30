@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import mimetypes
 import os
 import re
@@ -23,6 +24,7 @@ HOST = "127.0.0.1"
 PORT = 8765
 DESKTOP_HEARTBEAT_TIMEOUT = 12
 USER_ID_RE = re.compile(r"^[a-f0-9]{16,64}$")
+USERNAME_RE = re.compile(r"^[\w\u4e00-\u9fff-]{2,24}$", re.UNICODE)
 MAX_USER_STATE_BYTES = 250_000
 
 
@@ -81,7 +83,7 @@ class WeatherRagHandler(BaseHTTPRequestHandler):
             self.write_json({"ok": True})
             return
 
-        if parsed.path not in {"/api/ask", "/api/activity-risk", "/api/user-state"}:
+        if parsed.path not in {"/api/ask", "/api/activity-risk", "/api/user-state", "/api/register-user"}:
             self.write_json({"error": "Not found"}, status=404)
             return
 
@@ -89,6 +91,11 @@ class WeatherRagHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             body = self.rfile.read(length).decode("utf-8")
             payload = json.loads(body or "{}")
+            if parsed.path == "/api/register-user":
+                username = str(payload.get("username", ""))
+                self.write_json(register_user(username))
+                return
+
             if parsed.path == "/api/user-state":
                 user_id = self.user_id_from_header()
                 if not user_id:
@@ -169,6 +176,54 @@ def user_data_health() -> dict[str, Any]:
 
 def user_state_path(user_id: str) -> Path:
     return USER_DATA_DIR / f"{user_id}.json"
+
+
+def users_index_path() -> Path:
+    return USER_DATA_DIR / "users.json"
+
+
+def normalize_username(username: str) -> str:
+    normalized = username.strip().lower()
+    if not USERNAME_RE.fullmatch(normalized):
+        raise ValueError("用户名需为 2-24 位中文、字母、数字、下划线或短横线")
+    return normalized
+
+
+def read_users_index() -> dict[str, Any]:
+    path = users_index_path()
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def write_users_index(users: dict[str, Any]) -> None:
+    USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    users_index_path().write_text(json.dumps(users, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def register_user(username: str) -> dict[str, Any]:
+    normalized = normalize_username(username)
+    users = read_users_index()
+    user = users.get(normalized)
+    if not isinstance(user, dict):
+        user = {
+            "username": normalized,
+            "user_id": secrets.token_hex(16),
+            "passport": secrets.token_urlsafe(18),
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        users[normalized] = user
+        write_users_index(users)
+    return {
+        "username": user["username"],
+        "user_id": user["user_id"],
+        "passport": user["passport"],
+        "storage": user_data_health(),
+    }
 
 
 def read_user_state(user_id: str) -> dict[str, Any]:

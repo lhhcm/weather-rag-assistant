@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+import stat
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,14 +21,18 @@ def copy_item(name: str) -> None:
     source = ROOT / name
     target = OUT / name
     if source.is_dir():
-        shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "weather"))
+        shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
     else:
         shutil.copy2(source, target)
 
 
 def main() -> None:
     if OUT.exists():
-        shutil.rmtree(OUT)
+        def unlock_and_retry(function, path, exc_info):
+            Path(path).chmod(stat.S_IWRITE)
+            function(path)
+
+        shutil.rmtree(OUT, onerror=unlock_and_retry)
     OUT.mkdir(parents=True)
     for item in COPY_ITEMS:
         copy_item(item)

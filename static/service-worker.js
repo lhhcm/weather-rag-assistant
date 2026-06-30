@@ -1,11 +1,18 @@
-const CACHE_NAME = "weather-risk-assistant-v1";
+const CACHE_NAME = "weather-risk-assistant-v2";
 const APP_SHELL = [
   "/",
   "/static/mobile.html",
   "/static/mobile.js",
   "/static/manifest.webmanifest",
   "/static/assets/app/icon-192.png",
-  "/static/assets/app/icon-512.png"
+  "/static/assets/app/icon-512.png",
+  "/static/assets/weather/clear-cn.png",
+  "/static/assets/weather/cloudy-cn.png",
+  "/static/assets/weather/rain-cn.png",
+  "/static/assets/weather/thunder-cn.png",
+  "/static/assets/weather/wind-cn.png",
+  "/static/assets/weather/heat-cn.png",
+  "/static/assets/weather/fog-cn.png"
 ];
 
 self.addEventListener("install", (event) => {
