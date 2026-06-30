@@ -24,7 +24,8 @@ const state = {
   lastPlan: null,
   feedback: JSON.parse(localStorage.getItem("meteorisk_feedback") || "[]"),
   subscriptions: JSON.parse(localStorage.getItem("meteorisk_subscriptions") || "[]"),
-  queryHistory: JSON.parse(localStorage.getItem("meteorisk_query_history") || "[]")
+  queryHistory: JSON.parse(localStorage.getItem("meteorisk_query_history") || "[]"),
+  activityPlans: JSON.parse(localStorage.getItem("meteorisk_activity_plans") || "[]")
 };
 
 function fmt(value, suffix = "") {
@@ -59,6 +60,13 @@ function levelMeta(level) {
   if (level === "谨慎") return { color: "#eab308", text: "谨慎", cls: "text-warning", bg: "bg-warning/15 text-warning" };
   if (level === "不推荐") return { color: "#ef4444", text: "不推荐", cls: "text-danger", bg: "bg-red-50 text-danger" };
   return { color: "#5d6469", text: "待评估", cls: "text-muted", bg: "bg-fog text-muted" };
+}
+
+function levelRank(level) {
+  if (level === "适合") return 1;
+  if (level === "谨慎") return 2;
+  if (level === "不推荐") return 3;
+  return 0;
 }
 
 function riskClass(level) {
@@ -575,6 +583,164 @@ function renderSubscriptions() {
   `).join("") || `<p class="text-sm text-muted">暂无订阅。</p>`;
 }
 
+function planStorageKey(payload) {
+  return `${payload.location}|${payload.activity_type}|${payload.date}|${payload.start_time}|${payload.duration_hours}`;
+}
+
+function formatPlanTime(payload) {
+  return `${payload.date} ${payload.start_time} · ${payload.duration_hours}小时`;
+}
+
+function isPastPlan(payload) {
+  const start = new Date(`${payload.date}T${payload.start_time || "00:00"}`);
+  return Number.isFinite(start.getTime()) && start.getTime() < Date.now() - 60 * 60 * 1000;
+}
+
+function saveActivityPlans() {
+  localStorage.setItem("meteorisk_activity_plans", JSON.stringify(state.activityPlans));
+}
+
+function requestNotificationPermission() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
+function pushPlanNotification(plan, message) {
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification("天气预报风险提醒", {
+      body: `${plan.displayLocation} ${plan.activity}：${message}`,
+      tag: `meteorisk-plan-${plan.id}`
+    });
+  }
+}
+
+function buildPlanAlert(plan, data) {
+  const previousScore = Number(plan.currentScore ?? plan.baselineScore ?? 100);
+  const nextScore = Number(data.score ?? previousScore);
+  const scoreDrop = previousScore - nextScore;
+  const levelWorse = levelRank(data.level) > levelRank(plan.currentLevel || plan.baselineLevel);
+  const highRisk = data.level === "不推荐" || nextScore <= 45;
+  const riskChanged = highRisk || levelWorse || scoreDrop >= 10;
+  if (!riskChanged) return "";
+  if (highRisk) return `风险极高：安全指数已降到 ${Math.round(nextScore)}，建议取消或改期。`;
+  if (levelWorse) return `天气预报变差：等级从 ${plan.currentLevel || plan.baselineLevel} 变为 ${data.level}，安全指数 ${Math.round(nextScore)}。`;
+  return `安全指数下降：从 ${Math.round(previousScore)} 降到 ${Math.round(nextScore)}，请重新确认计划。`;
+}
+
+function addCurrentPlan() {
+  if (!state.lastPlan) {
+    $("#plan-monitor-status").textContent = "请先完成一次活动天气评估，再添加到计划表。";
+    activateView("tools");
+    return;
+  }
+  const data = state.lastPlan;
+  const payload = {
+    location: data.plan?.location || $("#location").value.trim(),
+    activity_type: data.plan?.activity_type || $("#activity").value,
+    date: data.plan?.date || $("#date").value,
+    start_time: data.plan?.start_time || $("#time").value,
+    duration_hours: Number(data.plan?.duration_hours || $("#duration").value || 2),
+    people: Number(data.plan?.people || $("#people").value || 1),
+    children: Boolean(data.plan?.children || $("#children").checked),
+    elderly: $("#elderly").checked
+  };
+  const resolved = data.plan?.resolved_location || data.data_source?.location || {};
+  const plan = {
+    id: `${Date.now()}`,
+    key: planStorageKey(payload),
+    payload,
+    displayLocation: resolved.display_name || payload.location || "未命名地点",
+    activity: activityLabel(payload.activity_type),
+    baselineScore: data.score,
+    baselineLevel: data.level,
+    currentScore: data.score,
+    currentLevel: data.level,
+    weather: (data.weather_window?.weather_labels || []).join("、") || "天气平稳",
+    alert: "",
+    createdAt: new Date().toLocaleString("zh-CN"),
+    lastCheckedAt: new Date().toLocaleString("zh-CN")
+  };
+  state.activityPlans = state.activityPlans.filter((item) => item.key !== plan.key);
+  state.activityPlans.unshift(plan);
+  state.activityPlans = state.activityPlans.slice(0, 20);
+  saveActivityPlans();
+  requestNotificationPermission();
+  renderActivityPlans();
+  $("#plan-monitor-status").textContent = "已加入计划表，页面打开期间会自动复查天气预报。";
+  activateView("tools");
+}
+
+function renderPlanAlerts() {
+  const alerts = state.activityPlans.filter((plan) => plan.alert);
+  $("#plan-alerts").innerHTML = alerts.map((plan) => `
+    <div class="rounded-lg border border-danger/30 bg-red-50 p-3">
+      <p class="text-sm font-bold text-danger">${escapeHtml(plan.alert)}</p>
+      <p class="mt-1 text-xs text-muted">${escapeHtml(plan.displayLocation)} · ${escapeHtml(plan.activity)} · ${escapeHtml(formatPlanTime(plan.payload))}</p>
+    </div>
+  `).join("");
+}
+
+function renderActivityPlans() {
+  renderPlanAlerts();
+  $("#activity-plan-list").innerHTML = state.activityPlans.map((plan, index) => {
+    const meta = levelMeta(plan.currentLevel);
+    const expired = isPastPlan(plan.payload);
+    const alertClass = plan.alert ? "border-danger/40 bg-red-50" : "border-line bg-white";
+    return `
+      <div class="rounded-lg border ${alertClass} p-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-bold">${escapeHtml(plan.displayLocation)} · ${escapeHtml(plan.activity)}</p>
+            <p class="mt-1 text-xs text-muted">${escapeHtml(formatPlanTime(plan.payload))}</p>
+            <p class="mt-1 text-xs text-muted">基准 ${plan.baselineScore} · 当前 ${plan.currentScore} · ${escapeHtml(plan.weather || "天气平稳")}</p>
+            ${plan.alert ? `<p class="mt-2 text-sm font-bold text-danger">${escapeHtml(plan.alert)}</p>` : ""}
+            <p class="mt-1 text-[11px] text-muted">${expired ? "已过计划时间，不再自动复查。" : `上次复查：${escapeHtml(plan.lastCheckedAt || "尚未复查")}`}</p>
+          </div>
+          <div class="flex shrink-0 flex-col items-end gap-2">
+            <span class="rounded-full px-2 py-1 text-xs font-bold ${meta.bg}">${escapeHtml(plan.currentLevel)} · ${plan.currentScore}</span>
+            <button class="check-plan rounded bg-fog px-2 py-1 text-xs font-bold" data-index="${index}" type="button">复查</button>
+            <button class="remove-plan rounded bg-fog px-2 py-1 text-xs font-bold text-muted" data-index="${index}" type="button">删除</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("") || `<p class="rounded-lg border border-dashed border-line bg-white p-3 text-sm text-muted">暂无计划。完成评估后可添加到计划表。</p>`;
+}
+
+async function checkOnePlan(index, notify = true) {
+  const plan = state.activityPlans[index];
+  if (!plan || isPastPlan(plan.payload)) return;
+  const data = await fetchRisk(plan.payload);
+  const alert = buildPlanAlert(plan, data);
+  plan.currentScore = data.score;
+  plan.currentLevel = data.level;
+  plan.weather = (data.weather_window?.weather_labels || []).join("、") || "天气平稳";
+  plan.lastCheckedAt = new Date().toLocaleString("zh-CN");
+  plan.alert = alert;
+  if (alert && notify) pushPlanNotification(plan, alert);
+}
+
+async function checkActivityPlans(notify = true) {
+  if (!state.activityPlans.length) {
+    renderActivityPlans();
+    return;
+  }
+  $("#plan-monitor-status").textContent = "正在复查计划天气预报...";
+  for (let index = 0; index < state.activityPlans.length; index += 1) {
+    try {
+      await checkOnePlan(index, notify);
+    } catch (error) {
+      state.activityPlans[index].alert = `复查失败：${error.message}`;
+      state.activityPlans[index].lastCheckedAt = new Date().toLocaleString("zh-CN");
+    }
+  }
+  saveActivityPlans();
+  renderActivityPlans();
+  $("#plan-monitor-status").textContent = "计划表已更新，页面打开期间每 10 分钟自动复查。";
+}
+
 function renderPlan(data) {
   state.lastPlan = data;
   const resolved = data.plan.resolved_location || data.data_source?.location || {};
@@ -588,6 +754,7 @@ function renderPlan(data) {
   $("#contingency").innerHTML = (data.contingency || []).map((item) => `<li>${item}</li>`).join("");
   $("#notice").textContent = data.notification || "";
   renderDerivedTools(data);
+  renderActivityPlans();
 }
 
 async function fetchRisk(payload) {
@@ -829,6 +996,7 @@ function init() {
   renderFeedback();
   renderQueryHistory();
   renderQaQuickQuestions();
+  renderActivityPlans();
 
   $("#risk-form").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -877,6 +1045,31 @@ function init() {
     $("#qa-question").focus();
   });
   $("#qa-submit").addEventListener("click", askKnowledge);
+  $("#add-plan").addEventListener("click", addCurrentPlan);
+  $("#check-plans-now").addEventListener("click", () => checkActivityPlans(true));
+  $("#activity-plan-list").addEventListener("click", async (event) => {
+    const checkButton = event.target.closest(".check-plan");
+    const removeButton = event.target.closest(".remove-plan");
+    if (checkButton) {
+      const index = Number(checkButton.dataset.index);
+      $("#plan-monitor-status").textContent = "正在复查这条计划...";
+      try {
+        await checkOnePlan(index, true);
+        saveActivityPlans();
+        renderActivityPlans();
+        $("#plan-monitor-status").textContent = "这条计划已复查。";
+      } catch (error) {
+        $("#plan-monitor-status").textContent = `复查失败：${error.message}`;
+      }
+      return;
+    }
+    if (removeButton) {
+      state.activityPlans.splice(Number(removeButton.dataset.index), 1);
+      saveActivityPlans();
+      renderActivityPlans();
+      $("#plan-monitor-status").textContent = "已删除计划。";
+    }
+  });
   $("#copy-notice").addEventListener("click", async () => {
     await navigator.clipboard.writeText($("#notice").textContent);
     $("#copy-notice").innerHTML = '<span class="material-symbols-outlined text-lg">done</span>';
@@ -931,6 +1124,8 @@ function init() {
     localStorage.setItem("meteorisk_subscriptions", JSON.stringify(state.subscriptions));
     renderSubscriptions();
   });
+  setTimeout(() => checkActivityPlans(false), 1500);
+  setInterval(() => checkActivityPlans(true), 10 * 60 * 1000);
   startDesktopHeartbeat();
 }
 
