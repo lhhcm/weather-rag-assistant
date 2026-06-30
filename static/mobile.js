@@ -11,13 +11,13 @@ const decisionSections = [
 ];
 
 const images = {
-  clear: "/static/assets/weather/clear-cn.png",
-  cloudy: "/static/assets/weather/cloudy-cn.png",
-  rain: "/static/assets/weather/rain-cn.png",
-  thunder: "/static/assets/weather/thunder-cn.png",
-  wind: "/static/assets/weather/wind-cn.png",
-  heat: "/static/assets/weather/heat-cn.png",
-  fog: "/static/assets/weather/fog-cn.png"
+  clear: "linear-gradient(135deg, rgba(56,189,248,.82), rgba(250,204,21,.76)), radial-gradient(circle at 30% 22%, rgba(255,255,255,.75), transparent 24%), linear-gradient(160deg, #a7f3d0, #fef3c7)",
+  cloudy: "linear-gradient(135deg, rgba(148,163,184,.72), rgba(34,197,94,.48)), radial-gradient(circle at 38% 30%, rgba(255,255,255,.7), transparent 28%), linear-gradient(160deg, #dbeafe, #f8fafc)",
+  rain: "linear-gradient(135deg, rgba(14,165,233,.72), rgba(15,23,42,.72)), repeating-linear-gradient(115deg, rgba(255,255,255,.32) 0 2px, transparent 2px 16px), linear-gradient(160deg, #0f172a, #1e3a8a)",
+  thunder: "linear-gradient(135deg, rgba(250,204,21,.86), rgba(15,23,42,.8)), linear-gradient(118deg, transparent 0 45%, rgba(255,255,255,.9) 45% 52%, transparent 52% 100%), linear-gradient(160deg, #111827, #312e81)",
+  wind: "linear-gradient(135deg, rgba(20,184,166,.62), rgba(15,23,42,.72)), repeating-linear-gradient(170deg, rgba(255,255,255,.42) 0 3px, transparent 3px 22px), linear-gradient(160deg, #134e4a, #0f172a)",
+  heat: "linear-gradient(135deg, rgba(239,68,68,.78), rgba(250,204,21,.68)), radial-gradient(circle at 72% 22%, rgba(255,255,255,.68), transparent 18%), linear-gradient(160deg, #f97316, #991b1b)",
+  fog: "linear-gradient(135deg, rgba(226,232,240,.78), rgba(148,163,184,.64)), repeating-linear-gradient(0deg, rgba(255,255,255,.42) 0 8px, transparent 8px 22px), linear-gradient(160deg, #cbd5e1, #64748b)"
 };
 
 const STORAGE_KEYS = {

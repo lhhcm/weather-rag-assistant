@@ -119,6 +119,12 @@ hf upload MEONN/weather-risk-assistant .hf-space-build --type space --commit-mes
 
 也可以在 GitHub 仓库设置 `HF_TOKEN` Secret，然后手动运行 `Deploy Hugging Face Space` 工作流自动部署。
 
+已登录 Hugging Face CLI 后，也可以直接运行项目根目录的一键脚本：
+
+```powershell
+.\upload_to_huggingface.ps1
+```
+
 Hugging Face 免费 Space 不保证长期持久后台运行。项目会优先把免注册用户数据写到 `/data/weather_users`；如果 Space 没有持久存储，会退回临时存储，重建后可能丢失历史。
 
 页面状态接口会返回 `orchestrator=langgraph` 和 `answer_backend`。如果配置了大模型 API Key，`answer_backend=langchain-llm`；如果没有 Key，则为 `langchain-local-rag`，表示使用 LangChain 组织上下文，但答案由本地 RAG 兜底生成。

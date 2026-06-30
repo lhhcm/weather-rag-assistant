@@ -20,7 +20,7 @@ def copy_item(name: str) -> None:
     source = ROOT / name
     target = OUT / name
     if source.is_dir():
-        shutil.copytree(source, target)
+        shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "weather"))
     else:
         shutil.copy2(source, target)
 
