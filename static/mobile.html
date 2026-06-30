@@ -105,6 +105,26 @@
         </div>
       </section>
 
+      <section id="login-section" class="glass-card rounded-xl p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-[11px] font-bold text-muted">免注册便携登录</p>
+            <h2 class="text-xl font-bold leading-tight">用通行码同步你的计划</h2>
+            <p id="sync-status" class="mt-1 text-xs leading-relaxed text-muted">输入同一个通行码，手机和电脑会进入同一个用户空间。</p>
+          </div>
+          <span id="user-chip" class="rounded-full bg-fog px-3 py-1 text-xs font-bold text-muted">未登录</span>
+        </div>
+        <div class="mt-3 grid grid-cols-[1fr_auto] gap-2">
+          <input id="user-code" class="rounded-lg border-line text-sm" placeholder="输入或生成通行码" autocomplete="off" />
+          <button id="login-user" class="rounded-lg bg-primary px-4 text-sm font-bold text-white" type="button">登录</button>
+        </div>
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <button id="generate-user-code" class="rounded-lg border border-line bg-white py-2 text-sm font-bold" type="button">生成通行码</button>
+          <button id="logout-user" class="rounded-lg border border-line bg-white py-2 text-sm font-bold text-muted" type="button">退出本机</button>
+        </div>
+        <p class="mt-2 text-[11px] leading-relaxed text-muted">通行码只在你的设备上显示；服务端用哈希 ID 区分用户。请自己保存，丢失后无法找回。</p>
+      </section>
+
       <section id="assess-section" class="glass-card rounded-xl p-4">
         <div class="mb-3 flex items-end justify-between">
           <div>

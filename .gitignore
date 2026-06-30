@@ -6,6 +6,8 @@ __pycache__/
 .env
 *.log
 node_modules/
+runtime_users/
+.hf-space-build/
 
 .DS_Store
 Thumbs.db

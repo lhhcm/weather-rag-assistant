@@ -98,6 +98,29 @@ Android 模拟器可直接使用默认地址：
 http://10.0.2.2:8765
 ```
 
+## Hugging Face 免费 Space 部署
+
+项目支持以 Docker Space 方式部署到 Hugging Face。Space 会运行同一个 Python HTTP 服务，手机和电脑直接打开 Space 网址即可使用。
+
+部署前需要在本机登录 Hugging Face CLI：
+
+```powershell
+python -m pip install -U "huggingface_hub[cli]"
+hf auth login
+```
+
+创建并上传 Space：
+
+```powershell
+hf repos create MEONN/weather-risk-assistant --type space --space-sdk docker --exist-ok
+python tools/prepare_hf_space.py
+hf upload MEONN/weather-risk-assistant .hf-space-build --type space --commit-message "Deploy weather risk assistant"
+```
+
+也可以在 GitHub 仓库设置 `HF_TOKEN` Secret，然后手动运行 `Deploy Hugging Face Space` 工作流自动部署。
+
+Hugging Face 免费 Space 不保证长期持久后台运行。项目会优先把免注册用户数据写到 `/data/weather_users`；如果 Space 没有持久存储，会退回临时存储，重建后可能丢失历史。
+
 页面状态接口会返回 `orchestrator=langgraph` 和 `answer_backend`。如果配置了大模型 API Key，`answer_backend=langchain-llm`；如果没有 Key，则为 `langchain-local-rag`，表示使用 LangChain 组织上下文，但答案由本地 RAG 兜底生成。
 
 ## 可选：接入大模型 API

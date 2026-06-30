@@ -20,13 +20,44 @@ const images = {
   fog: "/static/assets/weather/fog-cn.png"
 };
 
+const STORAGE_KEYS = {
+  feedback: "meteorisk_feedback",
+  subscriptions: "meteorisk_subscriptions",
+  queryHistory: "meteorisk_query_history",
+  activityPlans: "meteorisk_activity_plans"
+};
+
+const userIdentity = JSON.parse(localStorage.getItem("meteorisk_user_identity") || "null") || {};
+
+function scopedStorageKey(key) {
+  return userIdentity?.userId ? `${key}_${userIdentity.userId.slice(0, 16)}` : key;
+}
+
+function readStoredArray(key) {
+  try {
+    return JSON.parse(localStorage.getItem(scopedStorageKey(key)) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredArray(key, value) {
+  localStorage.setItem(scopedStorageKey(key), JSON.stringify(value));
+}
+
+function removeStoredArray(key) {
+  localStorage.removeItem(scopedStorageKey(key));
+}
+
 const state = {
   lastPlan: null,
-  feedback: JSON.parse(localStorage.getItem("meteorisk_feedback") || "[]"),
-  subscriptions: JSON.parse(localStorage.getItem("meteorisk_subscriptions") || "[]"),
-  queryHistory: JSON.parse(localStorage.getItem("meteorisk_query_history") || "[]"),
-  activityPlans: JSON.parse(localStorage.getItem("meteorisk_activity_plans") || "[]")
+  feedback: readStoredArray(STORAGE_KEYS.feedback),
+  subscriptions: readStoredArray(STORAGE_KEYS.subscriptions),
+  queryHistory: readStoredArray(STORAGE_KEYS.queryHistory),
+  activityPlans: readStoredArray(STORAGE_KEYS.activityPlans)
 };
+
+let cloudSaveTimer = null;
 
 function fmt(value, suffix = "") {
   return value === null || value === undefined || value === "" ? "--" : `${value}${suffix}`;
@@ -34,6 +65,183 @@ function fmt(value, suffix = "") {
 
 function setStatus(text) {
   $("#api-status").textContent = text;
+}
+
+function currentUserId() {
+  return userIdentity?.userId || "";
+}
+
+function setSyncStatus(text) {
+  const node = $("#sync-status");
+  if (node) node.textContent = text;
+}
+
+function renderUserIdentity() {
+  const chip = $("#user-chip");
+  const input = $("#user-code");
+  if (!chip || !input) return;
+  if (userIdentity?.userId) {
+    chip.textContent = `已登录 ${userIdentity.userId.slice(0, 6)}`;
+    chip.className = "rounded-full bg-success/10 px-3 py-1 text-xs font-bold text-success";
+    input.value = userIdentity.code || "";
+    setSyncStatus("已启用云端用户空间。换设备输入同一个通行码即可同步计划和历史。");
+  } else {
+    chip.textContent = "未登录";
+    chip.className = "rounded-full bg-fog px-3 py-1 text-xs font-bold text-muted";
+    setSyncStatus("输入同一个通行码，手机和电脑会进入同一个用户空间。");
+  }
+}
+
+function randomUserCode() {
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(36).padStart(2, "0")).join("").slice(0, 16).toUpperCase();
+}
+
+async function digestUserCode(code) {
+  const normalized = code.trim().toLowerCase().replace(/\s+/g, "-");
+  if (!normalized) return "";
+  if (crypto.subtle) {
+    const bytes = new TextEncoder().encode(`weather-risk-user:${normalized}`);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  let hash = 2166136261;
+  for (const char of normalized) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash).toString(16).padStart(16, "0");
+}
+
+function exportUserState() {
+  return {
+    feedback: state.feedback,
+    subscriptions: state.subscriptions,
+    queryHistory: state.queryHistory,
+    activityPlans: state.activityPlans,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function applyUserState(nextState = {}) {
+  state.feedback = Array.isArray(nextState.feedback) ? nextState.feedback : [];
+  state.subscriptions = Array.isArray(nextState.subscriptions) ? nextState.subscriptions : [];
+  state.queryHistory = Array.isArray(nextState.queryHistory) ? nextState.queryHistory : [];
+  state.activityPlans = Array.isArray(nextState.activityPlans) ? nextState.activityPlans : [];
+}
+
+function saveLocalUserState() {
+  writeStoredArray(STORAGE_KEYS.feedback, state.feedback);
+  writeStoredArray(STORAGE_KEYS.subscriptions, state.subscriptions);
+  writeStoredArray(STORAGE_KEYS.queryHistory, state.queryHistory);
+  writeStoredArray(STORAGE_KEYS.activityPlans, state.activityPlans);
+}
+
+function renderUserDataViews() {
+  renderFeedback();
+  renderQueryHistory();
+  renderActivityPlans();
+  renderSubscriptions();
+}
+
+async function restoreCloudLogin() {
+  renderUserIdentity();
+  if (!currentUserId()) return;
+  try {
+    await loadCloudUserState();
+  } catch (error) {
+    setSyncStatus(`云端同步失败，已使用本机缓存：${error.message}`);
+  }
+}
+
+async function loadCloudUserState() {
+  if (!currentUserId()) return;
+  const response = await fetch("/api/user-state", {
+    headers: { "X-Weather-User": currentUserId() },
+    cache: "no-store"
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) throw new Error(data.error || "同步失败");
+  const remote = data.state || {};
+  const hasRemoteData = ["feedback", "subscriptions", "queryHistory", "activityPlans"].some((key) => Array.isArray(remote[key]) && remote[key].length);
+  if (hasRemoteData) {
+    applyUserState(remote);
+    saveLocalUserState();
+  } else {
+    saveLocalUserState();
+    await saveCloudUserState(true);
+  }
+  renderUserDataViews();
+  setSyncStatus(data.storage?.persistent_hint ? "已连接云端用户空间，数据写入 Hugging Face 持久目录。" : "已连接云端用户空间；当前 Space 可能没有持久存储。");
+}
+
+async function saveCloudUserState(immediate = false) {
+  if (!currentUserId()) return;
+  const save = async () => {
+    const response = await fetch("/api/user-state", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Weather-User": currentUserId()
+      },
+      body: JSON.stringify({ state: exportUserState() })
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || "保存失败");
+    setSyncStatus(data.storage?.persistent_hint ? "已同步到云端。" : "已同步；当前 Space 可能没有持久存储。");
+  };
+  if (immediate) {
+    await save();
+    return;
+  }
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(() => save().catch((error) => setSyncStatus(`云端同步失败：${error.message}`)), 800);
+}
+
+function persistUserData() {
+  saveLocalUserState();
+  saveCloudUserState(false);
+}
+
+async function loginWithUserCode() {
+  const code = $("#user-code").value.trim();
+  if (code.length < 6) {
+    setSyncStatus("通行码至少 6 位，建议使用生成按钮。");
+    return;
+  }
+  setSyncStatus("正在进入云端用户空间...");
+  const userId = await digestUserCode(code);
+  userIdentity.userId = userId;
+  userIdentity.code = code;
+  localStorage.setItem("meteorisk_user_identity", JSON.stringify(userIdentity));
+  applyUserState({
+    feedback: readStoredArray(STORAGE_KEYS.feedback),
+    subscriptions: readStoredArray(STORAGE_KEYS.subscriptions),
+    queryHistory: readStoredArray(STORAGE_KEYS.queryHistory),
+    activityPlans: readStoredArray(STORAGE_KEYS.activityPlans)
+  });
+  renderUserIdentity();
+  try {
+    await loadCloudUserState();
+  } catch (error) {
+    renderUserDataViews();
+    setSyncStatus(`已在本机登录，但云端同步失败：${error.message}`);
+  }
+}
+
+function logoutUser() {
+  localStorage.removeItem("meteorisk_user_identity");
+  userIdentity.userId = "";
+  userIdentity.code = "";
+  applyUserState({
+    feedback: readStoredArray(STORAGE_KEYS.feedback),
+    subscriptions: readStoredArray(STORAGE_KEYS.subscriptions),
+    queryHistory: readStoredArray(STORAGE_KEYS.queryHistory),
+    activityPlans: readStoredArray(STORAGE_KEYS.activityPlans)
+  });
+  renderUserIdentity();
+  renderUserDataViews();
 }
 
 function startDesktopHeartbeat() {
@@ -189,7 +397,7 @@ function saveQueryHistory(payload, data) {
   });
   state.queryHistory.unshift(historyItem);
   state.queryHistory = state.queryHistory.slice(0, 12);
-  localStorage.setItem("meteorisk_query_history", JSON.stringify(state.queryHistory));
+  persistUserData();
   renderQueryHistory();
 }
 
@@ -235,7 +443,7 @@ function restoreQueryHistory(index) {
 
 function deleteQueryHistory(index) {
   state.queryHistory.splice(index, 1);
-  localStorage.setItem("meteorisk_query_history", JSON.stringify(state.queryHistory));
+  persistUserData();
   renderQueryHistory();
   $("#geolocation-status").textContent = "已删除这条查询历史。";
 }
@@ -597,7 +805,7 @@ function isPastPlan(payload) {
 }
 
 function saveActivityPlans() {
-  localStorage.setItem("meteorisk_activity_plans", JSON.stringify(state.activityPlans));
+  persistUserData();
 }
 
 function requestNotificationPermission() {
@@ -939,7 +1147,7 @@ function addSubscription() {
     reminders: "6小时 / 2小时 / 30分钟"
   });
   state.subscriptions = state.subscriptions.slice(0, 8);
-  localStorage.setItem("meteorisk_subscriptions", JSON.stringify(state.subscriptions));
+  persistUserData();
   renderSubscriptions();
 }
 
@@ -956,7 +1164,7 @@ function addFeedback(label) {
     createdAt: new Date().toLocaleString("zh-CN")
   });
   state.feedback = state.feedback.slice(0, 20);
-  localStorage.setItem("meteorisk_feedback", JSON.stringify(state.feedback));
+  persistUserData();
   $("#feedback-note").value = "";
   renderFeedback();
 }
@@ -988,6 +1196,7 @@ function init() {
   const date = new Date();
   date.setDate(date.getDate() + 1);
   $("#date").value = date.toISOString().slice(0, 10);
+  renderUserIdentity();
   updateRing(undefined, "待评估");
   renderMetrics(null);
   renderFactors([]);
@@ -1008,9 +1217,19 @@ function init() {
     node.addEventListener("change", renderQaQuickQuestions);
   });
   $("#use-current-location").addEventListener("click", requestCurrentLocation);
+  $("#generate-user-code").addEventListener("click", () => {
+    $("#user-code").value = randomUserCode();
+    setSyncStatus("已生成通行码。请保存它，然后点击登录。");
+  });
+  $("#login-user").addEventListener("click", loginWithUserCode);
+  $("#user-code").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") loginWithUserCode();
+  });
+  $("#logout-user").addEventListener("click", logoutUser);
   $("#clear-query-history").addEventListener("click", () => {
     state.queryHistory = [];
-    localStorage.removeItem("meteorisk_query_history");
+    removeStoredArray(STORAGE_KEYS.queryHistory);
+    persistUserData();
     renderQueryHistory();
     $("#geolocation-status").textContent = "查询历史已清空。";
   });
@@ -1121,11 +1340,12 @@ function init() {
     const button = event.target.closest(".remove-sub");
     if (!button) return;
     state.subscriptions.splice(Number(button.dataset.index), 1);
-    localStorage.setItem("meteorisk_subscriptions", JSON.stringify(state.subscriptions));
+    persistUserData();
     renderSubscriptions();
   });
   setTimeout(() => checkActivityPlans(false), 1500);
   setInterval(() => checkActivityPlans(true), 10 * 60 * 1000);
+  restoreCloudLogin();
   startDesktopHeartbeat();
 }
 
