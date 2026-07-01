@@ -78,17 +78,30 @@ function setSyncStatus(text) {
 
 function renderUserIdentity() {
   const chip = $("#user-chip");
+  const topChip = $("#top-user-chip");
+  const loginSection = $("#login-section");
   const input = $("#username-input");
   if (!chip || !input) return;
   if (userIdentity?.userId) {
-    chip.textContent = `已登录 ${userIdentity.username || userIdentity.userId.slice(0, 6)}`;
+    const label = `已登录 ${userIdentity.username || userIdentity.userId.slice(0, 6)}`;
+    chip.textContent = label;
     chip.className = "rounded-full bg-success/10 px-3 py-1 text-xs font-bold text-success";
+    if (topChip) {
+      topChip.textContent = label;
+      topChip.className = "rounded-full bg-success/10 px-3 py-1 text-[10px] font-bold text-success";
+    }
+    if (loginSection) loginSection.classList.add("hidden");
     input.value = userIdentity.username || "";
     setSyncStatus("已自动进入云端用户空间，计划和历史会按用户名同步。");
     $("#passport-hint").textContent = userIdentity.passport ? `通行证已绑定并缓存到浏览器：${userIdentity.passport}` : "通行证已绑定并缓存到浏览器。";
   } else {
     chip.textContent = "未登录";
     chip.className = "rounded-full bg-fog px-3 py-1 text-xs font-bold text-muted";
+    if (topChip) {
+      topChip.textContent = "未登录";
+      topChip.className = "rounded-full bg-fog px-3 py-1 text-[10px] font-bold text-muted";
+    }
+    if (loginSection) loginSection.classList.remove("hidden");
     setSyncStatus("输入自定义用户名，点击注册/进入后自动生成通行证。");
     $("#passport-hint").textContent = "登录后会自动缓存到浏览器，下次打开自动进入。通行证由后端生成，不需要你手动设置密码。";
   }
@@ -459,7 +472,6 @@ function requestCurrentLocation() {
     const latitude = position.coords.latitude.toFixed(5);
     const longitude = position.coords.longitude.toFixed(5);
     $("#location").value = `${latitude},${longitude}`;
-    $("#top-location").textContent = "当前位置坐标";
     $("#geolocation-status").textContent = `已获取当前位置：${latitude}, ${longitude}。点击“评估风险”开始查询。`;
     renderQaQuickQuestions();
     $("#use-current-location").disabled = false;
@@ -951,8 +963,6 @@ async function checkActivityPlans(notify = true) {
 
 function renderPlan(data) {
   state.lastPlan = data;
-  const resolved = data.plan.resolved_location || data.data_source?.location || {};
-  $("#top-location").textContent = resolved.display_name || data.plan.location || data.plan.city;
   updateRing(data.score, data.level);
   $("#conclusion").textContent = data.conclusion;
   renderMetrics(data.weather_window);
